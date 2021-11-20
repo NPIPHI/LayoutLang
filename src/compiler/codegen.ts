@@ -120,10 +120,10 @@ export class Function {
         const lines = [
             // I.i32.const,
             // encodeInt32(43),
-            // I.i32.const,
-            // encodeInt32(10),
-            // I.memory.grow,
-            // I.drop,
+            I.i32.const,
+            encodeInt32(10),
+            I.memory.grow,
+            I.drop, 
             I.memory.size,
             I.end_func
         ]

@@ -120,87 +120,12 @@ function encodeBufferCommon(buffer: Uint8Array, signed: boolean): Uint8Array {
   return result;
 }
 
-/**
- * Gets the byte-length of the value encoded in the given buffer at
- * the given index.
- */
-function encodedLength(encodedBuffer: Uint8Array, index: number): number {
-  var result = 0;
-
-  while (encodedBuffer[index + result] >= 0x80) {
-    result++;
-  }
-
-  result++; // to account for the last byte
-
-  if ((index + result) > encodedBuffer.length) {
-    throw new Error("Bogus encoding");
-  }
-
-  return result;
-}
-
-/**
- * Common decoder for both signed and unsigned ints. This takes an
- * LEB128-encoded buffer, returning a bigint-ish buffer.
- */
-function decodeBufferCommon(encodedBuffer: Uint8Array, index: number, signed: boolean): {value: number, nextIndex: number} {
-  index = (index === undefined) ? 0: index;
-
-  var length = encodedLength(encodedBuffer, index);
-  var bitLength = length * 7;
-  var byteLength = Math.ceil(bitLength / 8);
-  var result = bufs.alloc(byteLength);
-  var outIndex = 0;
-
-  while (length > 0) {
-    bits.inject(result, outIndex, 7, encodedBuffer[index]);
-    outIndex += 7;
-    index++;
-    length--;
-  }
-
-  var signBit;
-  var signByte;
-
-  if (signed) {
-    // Sign-extend the last byte.
-    var lastByte = result[byteLength - 1];
-    var endBit = outIndex % 8;
-    if (endBit !== 0) {
-      var shift = 32 - endBit; // 32 because JS bit ops work on 32-bit ints.
-      lastByte = result[byteLength - 1] = ((lastByte << shift) >> shift) & 0xff;
-    }
-    signBit = lastByte >> 7;
-    signByte = signBit * 0xff;
-  } else {
-    signBit = 0;
-    signByte = 0;
-  }
-
-  // Slice off any superfluous bytes, that is, ones that add no meaningful
-  // bits (because the value would be the same if they were removed).
-  while ((byteLength > 1) &&
-         (result[byteLength - 1] === signByte) &&
-         (!signed || ((result[byteLength - 2] >> 7) === signBit))) {
-    byteLength--;
-  }
-  result = bufs.resize(result, byteLength);
-
-  return { value: result, nextIndex: index };
-}
-
-
 /*
  * Exported bindings
  */
 
 export function encodeIntBuffer(buffer: Uint8Array): Uint8Array {
   return encodeBufferCommon(buffer, true);
-}
-
-export function decodeIntBuffer(encodedBuffer: Uint8Array, index: number): {value: number, nextIndex: number} {
-  return decodeBufferCommon(encodedBuffer, index, true);
 }
 
 export function encodeInt32(num: number): Uint8Array{
@@ -214,20 +139,6 @@ export function encodeInt32(num: number): Uint8Array{
   return result;
 }
 
-export function decodeInt32(encodedBuffer: Uint8Array, index: number): {value: number, nextIndex: number} {
-  var result = decodeIntBuffer(encodedBuffer, index);
-  var parsed = bufs.readInt(result.value);
-  var value = parsed.value;
-
-  bufs.free(result.value);
-
-  if ((value < MIN_INT32) || (value > MAX_INT32)) {
-    throw new Error("Result out of range");
-  }
-
-  return { value: value, nextIndex: result.nextIndex };
-}
-
 export function encodeInt64(num: number): Uint8Array {
   let buf = new Uint8Array(new BigUint64Array([BigInt(num)]).buffer);
   // var buf = bufs.alloc(8);
@@ -239,26 +150,8 @@ export function encodeInt64(num: number): Uint8Array {
   return result;
 }
 
-export function decodeInt64(encodedBuffer: Uint8Array, index: number): {value: number, nextIndex: number, lossy: boolean} {
-  var result = decodeIntBuffer(encodedBuffer, index);
-  var parsed = bufs.readInt(result.value);
-  var value = parsed.value;
-
-  bufs.free(result.value);
-
-  if ((value < MIN_INT64) || (value > MAX_INT64)) {
-    throw new Error("Result out of range");
-  }
-
-  return { value: value, nextIndex: result.nextIndex, lossy: parsed.lossy };
-}
-
 export function encodeUIntBuffer(buffer: Uint8Array): Uint8Array {
   return encodeBufferCommon(buffer, false);
-}
-
-export function decodeUIntBuffer(encodedBuffer: Uint8Array, index: number): {value: number, nextIndex: number} {
-  return decodeBufferCommon(encodedBuffer, index, false);
 }
 
 export function encodeUInt32(num: number): Uint8Array {
@@ -272,20 +165,6 @@ export function encodeUInt32(num: number): Uint8Array {
   return result;
 }
 
-export function decodeUInt32(encodedBuffer: Uint8Array, index: number): {value: number, nextIndex: number} {
-  var result = decodeUIntBuffer(encodedBuffer, index);
-  var parsed = bufs.readUInt(result.value);
-  var value = parsed.value;
-
-  bufs.free(result.value);
-
-  if (value > MAX_UINT32) {
-    throw new Error("Result out of range");
-  }
-
-  return { value: value, nextIndex: result.nextIndex };
-}
-
 export function encodeUInt64(num: number): Uint8Array {
   let buf = new Uint8Array(new BigInt64Array([BigInt(num)]).buffer);
   // var buf = bufs.alloc(8);
@@ -295,18 +174,4 @@ export function encodeUInt64(num: number): Uint8Array {
 
   bufs.free(buf);
   return result;
-}
-
-export function decodeUInt64(encodedBuffer: Uint8Array, index: number) {
-  var result = decodeUIntBuffer(encodedBuffer, index);
-  var parsed = bufs.readUInt(result.value);
-  var value = parsed.value;
-
-  bufs.free(result.value);
-
-  if (value > MAX_UINT64) {
-    throw new Error("Result out of range");
-  }
-
-  return { value: value, nextIndex: result.nextIndex, lossy: parsed.lossy };
 }
