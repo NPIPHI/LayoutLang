@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "lib": ["es2020"],
+        "noImplicitAny": true,
+        "allowJs": true,
+        "outDir": "build",
+        "sourceMap": true,   
+        "declaration": true,
+    }
+}
