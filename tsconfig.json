@@ -4,9 +4,9 @@
         "target": "es2020",
         "noImplicitAny": true,
         "allowJs": true,
-        "outDir": "dist",
+        "outDir": "build",
         "sourceMap": true,   
-        "declaration": true,
+        "declaration": false,
     },
-    "exclude": ["webpack*"]
+    "exclude": ["webpack*", "dist"]
 }
