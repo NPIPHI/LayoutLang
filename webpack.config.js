@@ -5,20 +5,20 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.ts$/,
-        use: 'ts-loader',
+        test: /\.tsx?$/,
+        use: ['ts-loader'],
         exclude: /node_modules/,
       },
     ],
   },
   resolve: {
     extensions: ['.ts', '.js'],
+    fallback: {fs: false}
   },
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
   },
-  resolve: {fallback: {fs: false}},
   // mode: "production",
   mode: "development",
   devtool: "inline-source-map"
