@@ -24,6 +24,13 @@ fn bad_types(a: i32, b: i32) -> i32 {
     return a + b;
 }
 
+fn main(a: i32) -> i32 {
+    return add(a, a);
+}
+
+fn add(a: i32, b : i32) -> i32{
+    return a + b;
+}
 
 `
 

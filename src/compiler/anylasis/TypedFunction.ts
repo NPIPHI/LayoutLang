@@ -97,7 +97,21 @@ function make_typed_expression(expr: Untyped.Expression, lookup: IdentifierLooku
         const symbol = lookup.get_symbol(expr.name);
         if(!symbol) throw "symbol not found: " + expr.name.name;
         if(!(symbol instanceof FunctionIdentifier)) throw `symbol ${expr.name} is a ${symbol} expected a "func"`;
-        return new FunctionCall(symbol.type, expr.name, expr.args.map(a=>make_typed_expression(a, lookup)));
+        const args = expr.args.map(a=>make_typed_expression(a, lookup))
+
+        if(args.length != symbol.args.length){
+            throw `number of arguments to function "${expr.name.name}" don't match the function definition`;
+        }
+
+        for(let i = 0; i < args.length; i++){
+            const func_type = symbol.args[i];
+            const real_type = args[i].type;
+            if(func_type != real_type){
+                throw `argument of function "${expr.name.name}" at position ${i} has wrong type: Got "${real_type}" expected "${func_type}"`;
+            }
+        }
+
+        return new FunctionCall(symbol.type, expr.name, args);
 
     } else if(expr instanceof Untyped.BinaryOp) {
         const left = make_typed_expression(expr.left, lookup);
