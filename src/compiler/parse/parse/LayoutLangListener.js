@@ -41,6 +41,24 @@ export default class LayoutLangListener extends antlr4.tree.ParseTreeListener {
 	}
 
 
+	// Enter a parse tree produced by LayoutLangParser#returnStatement.
+	enterReturnStatement(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#returnStatement.
+	exitReturnStatement(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#letStatement.
+	enterLetStatement(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#letStatement.
+	exitLetStatement(ctx) {
+	}
+
+
 	// Enter a parse tree produced by LayoutLangParser#type.
 	enterType(ctx) {
 	}
@@ -74,6 +92,33 @@ export default class LayoutLangListener extends antlr4.tree.ParseTreeListener {
 
 	// Exit a parse tree produced by LayoutLangParser#expr.
 	exitExpr(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#binaryop.
+	enterBinaryop(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#binaryop.
+	exitBinaryop(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#identifier.
+	enterIdentifier(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#identifier.
+	exitIdentifier(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#integer.
+	enterInteger(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#integer.
+	exitInteger(ctx) {
 	}
 
 

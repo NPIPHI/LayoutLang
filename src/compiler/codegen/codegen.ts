@@ -1,4 +1,7 @@
-import { encodeInt32 } from "./leb/leb";
+import { IRFunction, make_IRFunctions } from "../anylasis/function";
+import { encodeInt32 } from "../leb/leb";
+import * as SSA from "../anylasis/SSA"
+import { Operation, OP } from "../parse/expression";
 
 export namespace T {
     export const type_section = new Uint8Array([0x01]);
@@ -66,6 +69,17 @@ namespace I {
         size: new Uint8Array([0x3f, 0x00])
     }
 
+    export const local = {
+        get: new Uint8Array([0x20]),
+        set: new Uint8Array([0x21]),
+        tee: new Uint8Array([0x22])
+    }
+
+    export const global = {
+        get: new Uint8Array([0x23]),
+        set: new Uint8Array([0x24])
+    }
+
     export const drop = new Uint8Array([0x1A]);
     export const select = new Uint8Array([0x1B]);
     export const _return = new Uint8Array([0x0f]);
@@ -103,8 +117,40 @@ function make_sized_vec(buffers: Uint8Array[]): Uint8Array {
     return merge_buffers([length, count, ...buffers])
 }
 
-export class Function {
-    constructor(public name: string, public inputs: PrimitiveType[], public output: PrimitiveType | 0){}
+function get_op(op: Operation){
+    return {
+        0: I.i32.add,
+        1: I.i32.sub,
+        2: I.i32.mul,
+        3: I.i32.div_s
+    }[op];
+}
+
+function gen_code(code: SSA.Expression[], idx: number) : Uint8Array[]{
+    const expr = code[idx];
+    if(expr instanceof SSA.Constant){
+        return [I.i32.const, encodeInt32(expr.val)];
+    } else if(expr instanceof SSA.ArgIdentifier){
+        return [I.local.get, encodeInt32(expr.src_idx)];
+    } else if(expr instanceof SSA.LocalIdentifier){
+        return gen_code(code, expr.src_idx);
+    } else if(expr instanceof SSA.FunctionIdentifier){
+        throw "functions not implemented";
+    } else if(expr instanceof SSA.BinaryOp){
+        return [...gen_code(code, expr.left), ...gen_code(code, expr.right), get_op(expr.op)];
+    } else {
+        throw "unexpected ssa expression";
+    }
+}
+
+function make_wasm_function(func: IRFunction): WasmFunction {
+    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1);
+    code.push(I.end_func);
+    return new WasmFunction(func.name.name, func.args.map(a=>T.i32), T.i32, merge_buffers(code));
+}
+
+export class WasmFunction {
+    constructor(public name: string, public inputs: PrimitiveType[], public output: PrimitiveType | 0, public code: Uint8Array){}
 
     encodeType(): Uint8Array {
         const func_type = T.func;
@@ -117,23 +163,13 @@ export class Function {
 
     encodeCode(): Uint8Array {
         const local_declarations = encodeInt32(0);
-        const lines = [
-            // I.i32.const,
-            // encodeInt32(43),
-            I.i32.const,
-            encodeInt32(10),
-            I.memory.grow,
-            I.drop, 
-            I.memory.size,
-            I.end_func
-        ]
-
-        return make_lenth_encoding([local_declarations, ...lines]);
+      
+        return make_lenth_encoding([local_declarations, this.code]);
     }
 }
 
 class TypeSection {
-    constructor(public functions: Function[]){}
+    constructor(public functions: WasmFunction[]){}
 
     encode(): Uint8Array {
         const id = encodeInt32(1);
@@ -144,7 +180,7 @@ class TypeSection {
 }
 
 class FunctionSection {
-    constructor(public functions: Function[]){}
+    constructor(public functions: WasmFunction[]){}
 
     encode(): Uint8Array {
         const id = T.function_section;
@@ -155,7 +191,7 @@ class FunctionSection {
 }
 
 class FunctionExport {
-    constructor(public func: Function, public exportIndex: number){}
+    constructor(public func: WasmFunction, public exportIndex: number){}
 
     encode(): Uint8Array {
         const encoder = new TextEncoder();
@@ -191,7 +227,7 @@ class ExportSection {
 }
 
 class CodeSection {
-    constructor(public functions: Function[]){}
+    constructor(public functions: WasmFunction[]){}
 
     encode(): Uint8Array {
         const id = T.code_section;
@@ -227,18 +263,18 @@ class MemorySection{
 }
 
 export class WasmOutput {
-    constructor(public funcs: Function[]){}
+    constructor(public funcs: IRFunction[]){}
 
     encode(): Uint8Array {
         const encoder = new TextEncoder();
 
         const header = encoder.encode("\0asm");
         const binary_version = new Uint8Array(new Uint32Array([1]).buffer);
-        
-        const type_data = new TypeSection(this.funcs).encode();
-        const function_data = new FunctionSection(this.funcs).encode();
-        const export_data = new ExportSection([...this.funcs.map((f,i)=>new FunctionExport(f, i)), new MemoryExport("memory")]).encode();
-        const code_data = new CodeSection(this.funcs).encode();
+        const funcs = this.funcs.map(make_wasm_function);
+        const type_data = new TypeSection(funcs).encode();
+        const function_data = new FunctionSection(funcs).encode();
+        const export_data = new ExportSection([...funcs.map((f,i)=>new FunctionExport(f, i)), new MemoryExport("memory")]).encode();
+        const code_data = new CodeSection(funcs).encode();
         const memory_data = new MemorySection().encode();
 
         return merge_buffers([header, binary_version, type_data, function_data, memory_data, export_data, code_data]);

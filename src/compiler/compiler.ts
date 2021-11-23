@@ -1,19 +1,19 @@
-import { Parser } from "./parser"
-import { WasmOutput } from "./codegen"
-
-
-// export class Compiler{
-//     compile(input: string): Uint8Array {
-//         const parser = new Parser();
-//         return new WasmOutput(parser.parse(input)).encode();
-//     }
-// };
+import { Parser } from "./parse/parser"
+import { WasmOutput } from "./codegen/codegen"
+import { IRRepresentation } from "./anylasis/IRRepresentation";
 
 export class Compiler {
     public compile(input: string): Uint8Array {
-        const parser = new Parser();
-        const output = new WasmOutput(parser.parse(input));
+        console.time("parse");
+        const parsed = new Parser().parse(input);
+        console.timeEnd("parse");
+        console.time("ir");
+        const IR = new IRRepresentation(parsed);
+        console.timeEnd("ir");
+        console.time("codegen");
+        const output = new WasmOutput(IR.funcs).encode();
+        console.timeEnd("codegen");
 
-        return output.encode();
+        return output;
     }
 }
