@@ -1,12 +1,12 @@
 grammar LayoutLang;
 body    
-        : func*;
+        : functions+=func*;
 
 func    
-        : 'fn' IDENTIFIER '(' args ')' '->' type '{' funcBody '}';
+        : 'fn' name=IDENTIFIER '(' arguments=args ')' '->' type_decl=type '{' func_body=funcBody '}';
 
 funcBody 
-        : statement*;
+        : statements+=statement*;
 
 statement 
         : returnStatement
@@ -14,29 +14,35 @@ statement
         ;
 
 returnStatement
-        : 'return' expr ';';
+        : 'return' expression=expr ';';
 
 letStatement
-        : 'let' IDENTIFIER '=' expr ';';
+        : 'let' name=IDENTIFIER '=' expression=expr ';';
 
 type    
         : IDENTIFIER;
 
 args    
-        : arg*
+        : argList+=arg (',' argList+=arg)*
         ;
 
 arg 
-        : IDENTIFIER':'type;
+        : name=IDENTIFIER':'type_decl=type;
 
-expr    : expr binaryop expr
+expr    : funcCall
+        | parenExpr
+        | expr binaryop expr
+        | binaryExpr
         | identifier
         | integer
         ;
 
-binaryop: BINARYOP;
-identifier : IDENTIFIER;
-integer: INT;
+binaryExpr : ;
+funcCall: name=IDENTIFIER '(' argList+=expr (',' argList+=expr)* ')';
+parenExpr: '(' expression=expr ')';
+binaryop: op=BINARYOP;
+identifier : name=IDENTIFIER;
+integer: value=INT;
 
 BINARYOP : 
         '+'

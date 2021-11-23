@@ -31,10 +31,10 @@ function parse_return_statement(ctx: contexts.ReturnStatementContext): ReturnSta
     return new ReturnStatement(parse_expression(expr));
 }
 
-export function parse_statement(ctx: ParserContext): Statement {
+export function parse_statement(ctx: contexts.StatementContext): Statement {
     if(!(ctx instanceof contexts.StatementContext)) throw "Expected Statment";
 
-    let statement = ctx.children[0];
+    let statement = (ctx as any).children[0];
 
     if(statement instanceof contexts.ReturnStatementContext){
         return parse_return_statement(statement);

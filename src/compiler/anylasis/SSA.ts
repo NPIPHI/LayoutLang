@@ -15,7 +15,7 @@ export class ArgIdentifier {
 }
 
 export class FunctionIdentifier {
-    constructor(public idx: number, public func: Identifier){}
+    constructor(public idx: number, public func: Identifier, public args: number[]){}
 }
 
 export class BinaryOp {

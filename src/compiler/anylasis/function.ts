@@ -1,4 +1,4 @@
-import { BinaryOp, Expression, Identifier, Operation, Constant} from "../parse/expression";
+import { BinaryOp, Expression, Identifier, Operation, Constant, FunctionCall} from "../parse/expression";
 import { Argument, LetStatment, ParserFunction, ReturnStatement, Type } from "../parse/statment";
 import * as SSA from "./SSA"
 
@@ -39,7 +39,7 @@ class ArgSymbol{
     arg_idx: number;
 }
 
-type Symbol = FunctionSymbol | ValueSymbol | ArgSymbol;
+type Symbol = ValueSymbol | ArgSymbol | FunctionSymbol;
 
 class SymbolLookupTable{
     symbols: Map<string, Symbol>;
@@ -106,13 +106,17 @@ function make_IRFunction(func: ParserFunction, sym_lookup: SymbolLookupTable): I
                 throw "can't find symbol: " + f.name;
             }
             
-            if(sym instanceof FunctionSymbol){
-                expressions.push(new SSA.FunctionIdentifier(expressions.length, sym.name));
-            } else if(sym instanceof ArgSymbol){
+            if(sym instanceof ArgSymbol){
                 expressions.push(new SSA.ArgIdentifier(expressions.length, sym.arg_idx));
-            } else{
+            } else if(sym instanceof ValueSymbol){
                 expressions.push(new SSA.LocalIdentifier(expressions.length, sym.ssa_index));
+            } else {
+                throw "unexpected symbol type, expected value";
             }
+        } else if(f instanceof FunctionCall){
+            expressions.push(new SSA.FunctionIdentifier(expressions.length, f.name, f.args.map(add_expression)));
+        } else {
+            throw "unexpected expression type";
         }
         return expressions.length - 1;
     }

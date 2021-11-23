@@ -80,6 +80,8 @@ namespace I {
         set: new Uint8Array([0x24])
     }
 
+    export const call = new Uint8Array([0x10]);
+    export const call_inderect = new Uint8Array([0x11]);
     export const drop = new Uint8Array([0x1A]);
     export const select = new Uint8Array([0x1B]);
     export const _return = new Uint8Array([0x0f]);
@@ -126,25 +128,25 @@ function get_op(op: Operation){
     }[op];
 }
 
-function gen_code(code: SSA.Expression[], idx: number) : Uint8Array[]{
+function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, number>) : Uint8Array[]{
     const expr = code[idx];
     if(expr instanceof SSA.Constant){
         return [I.i32.const, encodeInt32(expr.val)];
     } else if(expr instanceof SSA.ArgIdentifier){
         return [I.local.get, encodeInt32(expr.src_idx)];
     } else if(expr instanceof SSA.LocalIdentifier){
-        return gen_code(code, expr.src_idx);
+        return gen_code(code, expr.src_idx, function_map);
     } else if(expr instanceof SSA.FunctionIdentifier){
-        throw "functions not implemented";
+        return [...expr.args.flatMap(n=>gen_code(code, n, function_map)), I.call, encodeInt32(function_map.get(expr.func.name))];
     } else if(expr instanceof SSA.BinaryOp){
-        return [...gen_code(code, expr.left), ...gen_code(code, expr.right), get_op(expr.op)];
+        return [...gen_code(code, expr.left, function_map), ...gen_code(code, expr.right, function_map), get_op(expr.op)];
     } else {
         throw "unexpected ssa expression";
     }
 }
 
-function make_wasm_function(func: IRFunction): WasmFunction {
-    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1);
+function make_wasm_function(func: IRFunction, function_map: Map<string, number>): WasmFunction {
+    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map);
     code.push(I.end_func);
     return new WasmFunction(func.name.name, func.args.map(a=>T.i32), T.i32, merge_buffers(code));
 }
@@ -270,7 +272,9 @@ export class WasmOutput {
 
         const header = encoder.encode("\0asm");
         const binary_version = new Uint8Array(new Uint32Array([1]).buffer);
-        const funcs = this.funcs.map(make_wasm_function);
+        let func_map = new Map<string, number>();
+        this.funcs.forEach((f,i)=>func_map.set(f.name.name, i));
+        const funcs = this.funcs.map(f=>make_wasm_function(f, func_map));
         const type_data = new TypeSection(funcs).encode();
         const function_data = new FunctionSection(funcs).encode();
         const export_data = new ExportSection([...funcs.map((f,i)=>new FunctionExport(f, i)), new MemoryExport("memory")]).encode();

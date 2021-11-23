@@ -8,22 +8,20 @@ import {ParserContext} from "./parserContext"
 
 class FunctionParser {
     func: ParserFunction;
-    parse_arg(ctx: ParserContext){
-        const [name, colon, type] = ctx.children.map(c=>c.getText());
-        return new Argument(new Identifier(name), type);
+    parse_arg(ctx: contexts.ArgContext){
+        return new Argument(new Identifier(ctx.name.text), ctx.type_decl.getText());
     }
-    parse_body(ctx: ParserContext): Statement[]{
+    parse_body(ctx: contexts.BodyContext): Statement[]{
         if(!(ctx instanceof contexts.FuncBodyContext)) throw "Expected FunctionBody";
-        return ctx.children.map(c=>parse_statement(c));
+        return ctx.statements.map(c=>parse_statement(c));
     }
-    parse_args(ctx: ParserContext): Argument[] {
+    parse_args(ctx: contexts.ArgsContext): Argument[] {
         if(!(ctx instanceof contexts.ArgsContext)) throw "Expected Args";
-        return ctx.children.map(c=>this.parse_arg(c));
+        return ctx.argList.map(c=>this.parse_arg(c));
     }
-    visitChildren(ctx: ParserContext){
+    visitChildren(ctx: contexts.FuncContext){
         if(!(ctx instanceof contexts.FuncContext)) throw "Expected FunctionContext";
-        const [_0, name, _1, args, _2, _3, type, _4, body, _5] = ctx.children;
-        this.func = new ParserFunction(new Identifier(name.getText()), this.parse_args(args) , type.getText(), this.parse_body(body));
+        this.func = new ParserFunction(new Identifier(ctx.name.text), this.parse_args(ctx.arguments) , ctx.type_decl.getText(), this.parse_body(ctx.func_body));
     }
 }
 
@@ -43,19 +41,13 @@ export class Parser {
         return this.funcs;
     }
 
-    private make_function(ctx: ParserContext){
+    private make_function(ctx: contexts.FuncContext){
         const function_parser = new FunctionParser();
-        ctx.accept(function_parser as any);
+        function_parser.visitChildren(ctx);
         return function_parser.func;
     }
 
-    private visitChildren(ctx: ParserContext){
-        if(!ctx || !ctx.children) throw "bad parse";
-
-        if(ctx instanceof contexts.BodyContext){
-            this.funcs = ctx.children.map(c=>this.make_function(c));
-        } else {
-            throw "unexpected token";
-        }
+    private visitChildren(ctx: contexts.BodyContext){
+        this.funcs = ctx.functions.map(c=>this.make_function(c));
     }
 }

@@ -1,4 +1,4 @@
-import { BinaryopContext, ExprContext, IdentifierContext, IntegerContext } from "./parse/LayoutLangParser";
+import { BinaryopContext, ExprContext, FuncCallContext, IdentifierContext, IntegerContext, ParenExprContext } from "./parse/LayoutLangParser";
 import { ParserContext } from "./parserContext";
 
 export class Constant{
@@ -27,13 +27,21 @@ export type Operation = 0 | 1 | 2 | 3;
 export class Identifier{
     constructor(public name: string){};
 }
-export type Expression = BinaryOp | Constant | Identifier;
+
+export class FunctionCall{
+    constructor(public name: Identifier, public args: Expression[]){};
+}
+export type Expression = BinaryOp | Constant | Identifier | FunctionCall;
 
 export function parse_expression(ctx: ParserContext): Expression {
     if(ctx instanceof IntegerContext){
         return new Constant(parseInt(ctx.getText()));
     } else if(ctx instanceof IdentifierContext){
         return new Identifier(ctx.getText());
+    } else if(ctx instanceof ParenExprContext){
+        return parse_expression(ctx.children[1]);
+    } else if(ctx instanceof FuncCallContext){
+        return new FunctionCall(new Identifier(ctx.name.text), ctx.argList.map(parse_expression));
     } else if(ctx instanceof ExprContext){
         if(ctx.children.length == 3){
             const left = parse_expression(ctx.children[0]);

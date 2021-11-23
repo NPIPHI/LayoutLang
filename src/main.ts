@@ -17,26 +17,27 @@ import {Compiler} from "./compiler/compiler";
 // }
 // main();
 
-
-async function main(){
-    const input = 
-    `fn square(a:i32 b:i32 c:i32) -> i32 {
-        let val = a + b + c;
-        let val2 = val + val;
-        return val2 + 3;
-    }`
-    console.time("compile");
-    const binary = new Compiler().compile(input);
-    console.timeEnd("compile");
-    console.time("instantiate");
-    const {module, instance} = await WebAssembly.instantiate(binary);
-    console.timeEnd("instantiate");
-    (globalThis as any).inst = instance;
-    console.time("run");
-    console.log("square(100)=" + (instance.exports as any).square(10, 5, 6))
-    console.timeEnd("run");
-
-    console.log(binary.length);
+const input = 
+`
+fn make_shape(num_points: i32) -> i32 {
+    return add(5,6) + add2(6,7);
 }
 
-setInterval(main, 1000);
+fn add(a: i32, b: i32) -> i32{
+    return a + b;
+}
+
+fn add2(a: i32, b: i32) -> i32{
+    return add(a, b);
+}
+`
+
+
+console.time("compile");
+const binary = new Compiler().compile(input);
+console.timeEnd("compile");
+
+WebAssembly.instantiate(binary).then(m=>{
+    console.log((m.instance.exports as any).make_shape(1));
+    (globalThis as any).inst = m.instance;
+});

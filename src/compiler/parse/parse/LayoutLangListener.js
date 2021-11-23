@@ -95,6 +95,33 @@ export default class LayoutLangListener extends antlr4.tree.ParseTreeListener {
 	}
 
 
+	// Enter a parse tree produced by LayoutLangParser#binaryExpr.
+	enterBinaryExpr(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#binaryExpr.
+	exitBinaryExpr(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#funcCall.
+	enterFuncCall(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#funcCall.
+	exitFuncCall(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#parenExpr.
+	enterParenExpr(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#parenExpr.
+	exitParenExpr(ctx) {
+	}
+
+
 	// Enter a parse tree produced by LayoutLangParser#binaryop.
 	enterBinaryop(ctx) {
 	}
