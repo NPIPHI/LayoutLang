@@ -130,8 +130,103 @@ function resize(buffer, length) {
   return newBuf;
 }
 
+/**
+ * Reads an arbitrary signed int from a buffer.
+ */
+function readInt(buffer) {
+  var length = buffer.length;
+  var positive = buffer[length - 1] < 0x80;
+  var result = positive ? 0 : -1;
+  var lossy = false;
+
+  // Note: We can't use bit manipulation here, since that stops
+  // working if the result won't fit in a 32-bit int.
+
+  if (length < 7) {
+    // Common case which can't possibly be lossy (because the result has
+    // no more than 48 bits, and loss only happens with 54 or more).
+    for (var i = length - 1; i >= 0; i--) {
+      result = (result * 0x100) + buffer[i];
+    }
+  } else {
+    for (var i = length - 1; i >= 0; i--) {
+      var one = buffer[i];
+      result *= 0x100;
+      if (isLossyToAdd(result, one)) {
+        lossy = true;
+      }
+      result += one;
+    }
+  }
+  
+  return { value: result, lossy: lossy };
+}
+
+/**
+ * Reads an arbitrary unsigned int from a buffer.
+ */
+function readUInt(buffer) {
+  var length = buffer.length;
+  var result = 0;
+  var lossy = false;
+
+  // Note: See above in re bit manipulation.
+
+  if (length < 7) {
+    // Common case which can't possibly be lossy (see above).
+    for (var i = length - 1; i >= 0; i--) {
+      result = (result * 0x100) + buffer[i];
+    }
+  } else {
+    for (var i = length - 1; i >= 0; i--) {
+      var one = buffer[i];
+      result *= 0x100;
+      if (isLossyToAdd(result, one)) {
+        lossy = true;
+      }
+      result += one;
+    }
+  }
+  
+  return { value: result, lossy: lossy };
+}
+
+/**
+ * Writes a little-endian 64-bit signed int into a buffer.
+ */
+function writeInt64(value, buffer) {
+  if ((value < MIN_EXACT_INT64) || (value > MAX_EXACT_INT64)) {
+    throw new Error("Value out of range.");
+  }
+
+  if (value < 0) {
+    value += BIT_64;
+  }
+
+  writeUInt64(value, buffer);
+}
+
+/**
+ * Writes a little-endian 64-bit unsigned int into a buffer.
+ */
+function writeUInt64(value, buffer) {
+  if ((value < 0) || (value > MAX_EXACT_UINT64)) {
+    throw new Error("Value out of range.");
+  }
+
+  var lowWord = value % BIT_32;
+  var highWord = Math.floor(value / BIT_32);
+
+  buffer.writeUInt32LE(lowWord, 0);
+  buffer.writeUInt32LE(highWord, 4);
+}
+
 module.exports = {
   alloc: alloc,
   free: free,
+  readInt: readInt,
+  readUInt: readUInt,
   resize: resize,
+  writeInt64: writeInt64,
+  writeUInt64: writeUInt64
 };

@@ -19,17 +19,12 @@ import {Compiler} from "./compiler/compiler";
 
 const input = 
 `
-fn make_shape(num_points: i32) -> i32 {
-    return add(5,6) + add2(6,7);
-}
 
-fn add(a: i32, b: i32) -> i32{
+fn bad_types(a: i32, b: i32) -> i32 {
     return a + b;
 }
 
-fn add2(a: i32, b: i32) -> i32{
-    return add(a, b);
-}
+
 `
 
 
@@ -38,6 +33,6 @@ const binary = new Compiler().compile(input);
 console.timeEnd("compile");
 
 WebAssembly.instantiate(binary).then(m=>{
-    console.log((m.instance.exports as any).make_shape(1));
+    console.log((m.instance.exports as any).bad_types(1));
     (globalThis as any).inst = m.instance;
 });

@@ -1,9 +1,9 @@
-import { ParserFunction } from "../parse/statment";
-import { IRFunction, make_IRFunctions } from "./function";
+import { TypedProgram } from "./TypedFunction";
+import { IRFunction, make_IRFunctions } from "./SSAFunction";
 
 export class IRRepresentation {
     funcs: IRFunction[];
-    constructor(funcs: ParserFunction[]){
-        this.funcs = make_IRFunctions(funcs);
+    constructor(prog: TypedProgram){
+        this.funcs = make_IRFunctions(prog.funcs);
     }
 }

@@ -4,7 +4,6 @@ import LayoutLangLexer from "./parse/LayoutLangLexer";
 import LayoutLangParser, * as contexts from "./parse/LayoutLangParser";
 import {Expression, Identifier} from "./expression"
 import {Statement, parse_statement, Argument, ParserFunction} from "./statment"
-import {ParserContext} from "./parserContext"
 
 class FunctionParser {
     func: ParserFunction;

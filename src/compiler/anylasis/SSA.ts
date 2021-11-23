@@ -1,4 +1,5 @@
-import { Identifier, Operation } from "../parse/expression";
+import { Identifier } from "../parse/expression";
+import { Operation } from "./TypedFunction";
 
 export type Expression = Constant | BinaryOp | LocalIdentifier | ArgIdentifier | FunctionIdentifier;
 

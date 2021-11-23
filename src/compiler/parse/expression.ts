@@ -4,18 +4,14 @@ import { ParserContext } from "./parserContext";
 export class Constant{
     constructor(public val: number){}
 }
+export type Operation = "*" | "/" | "+" | "-";
 export namespace OP {
-    export const PLUS = 0;
-    export const MINUS = 1;
-    export const TIMES = 2;
-    export const DIVIDE = 3;
+    export const operations = ["*", "/", "+", "-"];
     export function from(str: string): Operation {
-        return {
-            "+": PLUS,
-            "-": MINUS,
-            "*": TIMES,
-            "/": DIVIDE
-        }[str] as Operation
+        if(!operations.find(s=>s==str)){
+            throw `operation ${str} not recognized`;
+        }
+        return str as Operation;
     }
 }
 
@@ -23,7 +19,6 @@ export class BinaryOp {
     constructor(public left: Expression, public op: Operation, public right: Expression){}
 }
 
-export type Operation = 0 | 1 | 2 | 3;
 export class Identifier{
     constructor(public name: string){};
 }
@@ -31,6 +26,7 @@ export class Identifier{
 export class FunctionCall{
     constructor(public name: Identifier, public args: Expression[]){};
 }
+
 export type Expression = BinaryOp | Constant | Identifier | FunctionCall;
 
 export function parse_expression(ctx: ParserContext): Expression {

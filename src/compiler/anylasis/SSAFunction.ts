@@ -1,5 +1,6 @@
-import { BinaryOp, Expression, Identifier, Operation, Constant, FunctionCall} from "../parse/expression";
-import { Argument, LetStatment, ParserFunction, ReturnStatement, Type } from "../parse/statment";
+import { Identifier } from "../parse/expression";
+import { Function, Expression, BinaryOp, FunctionCall, IntConstant, ReturnStatement, LetStatement, Value } from "./TypedFunction";
+import { Argument, LetStatment, Type } from "../parse/statment";
 import * as SSA from "./SSA"
 
 export class WasmFunction{
@@ -7,10 +8,10 @@ export class WasmFunction{
 }
 
 class FunctionSymbol{
-    constructor(func: ParserFunction){
+    constructor(func: Function){
         this.name = func.name;
         this.args = func.args;
-        this.return_type = func.return_type;
+        this.return_type = func.type;
     }
     name: Identifier;
     args: Argument[];
@@ -30,7 +31,7 @@ class ValueSymbol{
 
 class ArgSymbol{  
     constructor(arg: Argument, idx: number){
-        this.name = arg.identifier;
+        this.name = arg.name;
         this.value_type = arg.type;
         this.arg_idx = idx;
     }
@@ -65,7 +66,7 @@ class SymbolLookupTable{
     }
 }
 
-export function make_IRFunctions(parser_functions: ParserFunction[]): IRFunction[]{
+export function make_IRFunctions(parser_functions: Function[]): IRFunction[]{
     const lookup = new SymbolLookupTable(null);
     for(const func of parser_functions){
         lookup.add_symbol(new FunctionSymbol(func));
@@ -74,7 +75,7 @@ export function make_IRFunctions(parser_functions: ParserFunction[]): IRFunction
     return parser_functions.map(func=>make_IRFunction(func, lookup));
 }
 
-function validate_function(func: ParserFunction){
+function validate_function(func: Function){
     if(func.body.length == 0) throw "no return statment in function: " + func.name.name;
     for(const statement of func.body){
         const is_end = (statement == func.body[func.body.length -1]);
@@ -85,7 +86,7 @@ function validate_function(func: ParserFunction){
     }
 }
 
-function make_IRFunction(func: ParserFunction, sym_lookup: SymbolLookupTable): IRFunction{
+function make_IRFunction(func: Function, sym_lookup: SymbolLookupTable): IRFunction{
     validate_function(func);
     const lookup = new SymbolLookupTable(sym_lookup);
     func.args.forEach((arg,idx)=>{
@@ -98,10 +99,10 @@ function make_IRFunction(func: ParserFunction, sym_lookup: SymbolLookupTable): I
             const op = f.op;
             const right = add_expression(f.right);
             expressions.push(new SSA.BinaryOp(expressions.length, left, right, op));
-        } else if(f instanceof Constant){
+        } else if(f instanceof IntConstant){
             expressions.push(new SSA.Constant(expressions.length, f.val));
-        } else if(f instanceof Identifier){
-            const sym = lookup.get_symbol(f);
+        } else if(f instanceof Value){
+            const sym = lookup.get_symbol(f.name);
             if(!sym) {
                 throw "can't find symbol: " + f.name;
             }
@@ -124,7 +125,7 @@ function make_IRFunction(func: ParserFunction, sym_lookup: SymbolLookupTable): I
     for(const statement of func.body){
         const idx = add_expression(statement.expr);
         if(statement instanceof LetStatment){
-            lookup.add_symbol(new ValueSymbol(statement.identifier, idx));
+            lookup.add_symbol(new ValueSymbol(statement.name, idx));
         } else {
             
         }

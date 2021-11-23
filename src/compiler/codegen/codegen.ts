@@ -1,5 +1,5 @@
-import { IRFunction, make_IRFunctions } from "../anylasis/function";
-import { encodeInt32 } from "../leb/leb";
+import { IRFunction } from "../anylasis/SSAFunction";
+import { encodeInt32 } from "./leb/leb";
 import * as SSA from "../anylasis/SSA"
 import { Operation, OP } from "../parse/expression";
 
@@ -119,13 +119,13 @@ function make_sized_vec(buffers: Uint8Array[]): Uint8Array {
     return merge_buffers([length, count, ...buffers])
 }
 
-function get_op(op: Operation){
+function get_op(op: Operation): Uint8Array{
     return {
-        0: I.i32.add,
-        1: I.i32.sub,
-        2: I.i32.mul,
-        3: I.i32.div_s
-    }[op];
+        "+": I.i32.add,
+        "-": I.i32.sub,
+        "*": I.i32.mul,
+        "/": I.i32.div_s
+    }[op]
 }
 
 function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, number>) : Uint8Array[]{
@@ -139,7 +139,7 @@ function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string,
     } else if(expr instanceof SSA.FunctionIdentifier){
         return [...expr.args.flatMap(n=>gen_code(code, n, function_map)), I.call, encodeInt32(function_map.get(expr.func.name))];
     } else if(expr instanceof SSA.BinaryOp){
-        return [...gen_code(code, expr.left, function_map), ...gen_code(code, expr.right, function_map), get_op(expr.op)];
+        return [...gen_code(code, expr.left, function_map), ...gen_code(code, expr.right, function_map), get_op(expr.op.op)];
     } else {
         throw "unexpected ssa expression";
     }

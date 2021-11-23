@@ -1,4 +1,4 @@
-import {Expression, Identifier, parse_expression} from "./expression";
+import { Expression, Identifier, parse_expression} from "./expression";
 import { ParserContext } from "./parserContext";
 import * as contexts from "./parse/LayoutLangParser"
 
@@ -9,7 +9,7 @@ export class ReturnStatement {
 }
 
 export class LetStatment {
-    constructor(public identifier: Identifier, public expr: Expression){}
+    constructor(public name: Identifier, public expr: Expression){}
 }
 
 export type Statement = ReturnStatement | LetStatment;
@@ -19,7 +19,7 @@ export class ParserFunction {
 }
 
 export class Argument {
-    constructor(public identifier: Identifier, public type: Type){}
+    constructor(public name: Identifier, public type: Type){}
 }
 
 function parse_let_statement(ctx: contexts.LetStatementContext): LetStatment{
