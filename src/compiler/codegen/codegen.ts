@@ -1,7 +1,7 @@
 import { IRFunction } from "../anylasis/SSAFunction";
 import { encodeInt32 } from "./leb/leb";
 import * as SSA from "../anylasis/SSA"
-import { Operation, OP } from "../parse/expression";
+import { Operation } from "../parse/expression";
 
 export namespace T {
     export const type_section = new Uint8Array([0x01]);
@@ -15,9 +15,10 @@ export namespace T {
     export const element_section = new Uint8Array([0x09]);
     export const code_section = new Uint8Array([0x0a]);
     export const data_section = new Uint8Array([0x0b]);
+    export const data_count_section = new Uint8Array([0x0c]);
     export const func = new Uint8Array([0x60]);
     export const i32 = new Uint8Array([0x7f]);
-    export const u32 = new Uint8Array([0x7e]);
+    export const i64 = new Uint8Array([0x7e]);
     export const f32 = new Uint8Array([0x7d]);
     export const f64 = new Uint8Array([0x7c]);
     export const export_func = new Uint8Array([0x00]);
@@ -148,11 +149,11 @@ function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string,
 function make_wasm_function(func: IRFunction, function_map: Map<string, number>): WasmFunction {
     let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map);
     code.push(I.end_func);
-    return new WasmFunction(func.name.name, func.args.map(a=>T.i32), T.i32, merge_buffers(code));
+    return new WasmFunction(func.name.name, func.args.map(a=>T.i32), T.i32, merge_buffers(code), []);
 }
 
 export class WasmFunction {
-    constructor(public name: string, public inputs: PrimitiveType[], public output: PrimitiveType | 0, public code: Uint8Array){}
+    constructor(public name: string, public inputs: PrimitiveType[], public output: PrimitiveType | 0, public code: Uint8Array, public locals: PrimitiveType[]){}
 
     encodeType(): Uint8Array {
         const func_type = T.func;
@@ -164,7 +165,7 @@ export class WasmFunction {
     }
 
     encodeCode(): Uint8Array {
-        const local_declarations = encodeInt32(0);
+        const local_declarations = make_vec(this.locals);
       
         return make_lenth_encoding([local_declarations, this.code]);
     }
@@ -264,8 +265,29 @@ class MemorySection{
     }
 }
 
+class DataSection{
+    constructor(public static_data: Uint8Array){}
+
+    encode(): Uint8Array {
+        const id = T.data_section;
+        const len = encodeInt32(this.static_data.length);
+        return merge_buffers([id, len, this.static_data]);
+    }
+}
+
+class DataCountSection{
+    constructor(public data_count: number){}
+
+    encode(): Uint8Array {
+        const id = T.data_count_section;
+        const data = encodeInt32(this.data_count);
+        const len = encodeInt32(data.length);
+        return merge_buffers([id, len, data]);
+    }
+}
+
 export class WasmOutput {
-    constructor(public funcs: IRFunction[]){}
+    constructor(public funcs: IRFunction[], public builtins: WasmFunction[], public data_count: number, public static_data: Uint8Array){}
 
     encode(): Uint8Array {
         const encoder = new TextEncoder();
@@ -274,13 +296,15 @@ export class WasmOutput {
         const binary_version = new Uint8Array(new Uint32Array([1]).buffer);
         let func_map = new Map<string, number>();
         this.funcs.forEach((f,i)=>func_map.set(f.name.name, i));
-        const funcs = this.funcs.map(f=>make_wasm_function(f, func_map));
+        const funcs = [...this.builtins, ...this.funcs.map(f=>make_wasm_function(f, func_map))];
         const type_data = new TypeSection(funcs).encode();
         const function_data = new FunctionSection(funcs).encode();
         const export_data = new ExportSection([...funcs.map((f,i)=>new FunctionExport(f, i)), new MemoryExport("memory")]).encode();
         const code_data = new CodeSection(funcs).encode();
         const memory_data = new MemorySection().encode();
+        const static_data = new DataSection(this.static_data).encode();
+        const data_count_data = new DataCountSection(this.data_count).encode();
 
-        return merge_buffers([header, binary_version, type_data, function_data, memory_data, export_data, code_data]);
+        return merge_buffers([header, binary_version, type_data, function_data, memory_data, export_data, data_count_data, code_data, static_data]);
     }
 }

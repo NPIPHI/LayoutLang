@@ -89,27 +89,14 @@ function isLossyToAdd(accum, num) {
  * available, or a freshly-allocated buffer if not.
  */
 function alloc(length) {
-  var result = bufPool[length];
-
-  if (result) {
-    bufPool[length] = undefined;
-  } else {
-    result = new Uint8Array(length);
-  }
-
-  result.fill(0);
-  return result;
+  return new Uint8Array(length);
 }
 
 /**
  * Releases a buffer back to the pool.
  */
 function free(buffer) {
-  var length = buffer.length;
 
-  if (length < TEMP_BUF_MAXIMUM_LENGTH) {
-    bufPool[length] = buffer;
-  }
 }
 
 /**
@@ -119,13 +106,16 @@ function free(buffer) {
  * otherwise the buffer might possibly be shared externally).
  */
 function resize(buffer, length) {
+  return new Uint8Array(buffer, 0, length);
   if (length === buffer.length) {
     return buffer;
   }
 
   var newBuf = alloc(length);
 
-  buffer.copy(newBuf);
+  let a = new Uint8Array()
+  newBuf.set(buffer);
+  // buffer.copy(newBuf);
   free(buffer);
   return newBuf;
 }

@@ -1,3 +1,5 @@
+import { decompile } from "./compiler/codegen/decompile";
+import { decodeInt32, encodeInt32 } from "./compiler/codegen/leb/leb";
 import {Compiler} from "./compiler/compiler";
 // const funcs = [
 //     new Function("main", [], T.i32),
@@ -19,27 +21,23 @@ import {Compiler} from "./compiler/compiler";
 
 const input = 
 `
-
-fn bad_types(a: i32, b: i32) -> i32 {
-    return a + b;
-}
-
-fn main(a: i32) -> i32 {
-    return add(a, a);
-}
-
-fn add(a: i32, b : i32) -> i32{
+fn add(a: i32, b: i32) -> i32 {
     return a + b;
 }
 
 `
 
+async function main(){
+    const builtins = await decompile("../cppsrc/stack_alloc.wasm");
+    const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input)
+    
+    const {module, instance} = await WebAssembly.instantiate(binary);
+    (globalThis as any).inst = instance;
+}
+main();
 
-console.time("compile");
-const binary = new Compiler().compile(input);
-console.timeEnd("compile");
 
-WebAssembly.instantiate(binary).then(m=>{
-    console.log((m.instance.exports as any).bad_types(1));
-    (globalThis as any).inst = m.instance;
-});
+// console.time("compile");
+// const binary = new Compiler().compile(input);
+// console.timeEnd("compile");
+

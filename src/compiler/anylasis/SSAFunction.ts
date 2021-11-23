@@ -3,9 +3,9 @@ import { Function, Expression, BinaryOp, FunctionCall, IntConstant, ReturnStatem
 import { Argument, LetStatment, Type } from "../parse/statment";
 import * as SSA from "./SSA"
 
-export class WasmFunction{
-    constructor(public name: Identifier, public args: Argument[], public code: Uint8Array){}
-}
+// export class WasmFunction{
+//     constructor(public name: Identifier, public args: Argument[], public type: Type, public code: Uint8Array){}
+// }
 
 class FunctionSymbol{
     constructor(func: Function){
