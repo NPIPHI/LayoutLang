@@ -3,19 +3,19 @@ import { Compiler } from "./compiler/compiler";
 
 const starting_code = 
 `
-fn trap() -> i32 {
+fn trap() -> i64 {
     return 0 / 0;
 }
 
-fn main() -> i32 {
+fn main() -> i64 {
     return fib(10);
 }
 
-fn cube(a: i32) -> i32 {
+fn cube(a: i64) -> i64 {
     return a * a * a;
 }
 
-fn fib(a: i32) -> i32 {
+fn fib(a: i64) -> i64 {
     return if(a <= 2){
         return 1;
     } else {
@@ -25,10 +25,16 @@ fn fib(a: i32) -> i32 {
 
 `
 
+const input = `
+fn main() -> i64 {
+    return 1 - 1;
+}
+`
+
 if(false){
     (async ()=>{
         const builtins = await decompile("../cppsrc/stack_alloc.wasm");
-        const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(starting_code);
+        const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input);
         const {instance} = await WebAssembly.instantiate(binary);
         const result = (instance.exports as any).main();
         console.log(result);
@@ -66,8 +72,8 @@ window.onload = async ()=>{
 
 async function update(){
     const input = (code_area as any).editor.getValue();
-    // if(input == last_text) return;
-    // last_text = input;
+    if(input == last_text) return;
+    last_text = input;
     try {
         const start = performance.now();
         const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input);

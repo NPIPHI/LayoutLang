@@ -1,8 +1,7 @@
 import { Identifier } from "../type";
-import { Function, Expression, BinaryOp, FunctionCall, IntConstant, Value, IfExpression, Statement, LetStatement} from "./TypedFunction";
+import { Function, Expression, BinaryOp, UnaryOp,FunctionCall, Constant, Value, IfExpression, Statement, LetStatement} from "./TypedFunction";
 import { Type, Argument } from "../type";
 import * as SSA from "./SSA"
-import { make_binary_op } from "./Operation";
 import { get_primitive_type } from "../codegen/primitiveTypes";
 
 // export class WasmFunction{
@@ -76,8 +75,13 @@ function make_ir(expressions: SSA.Expression[], expr: Expression, sym_lookup: Sy
         const op = expr.op;
         const right = make_ir(expressions, expr.right, sym_lookup);
         expressions.push(new SSA.Operation(expressions.length, [left, right], expr.op, get_primitive_type(op.type)));
-    } else if(expr instanceof IntConstant){
-        expressions.push(new SSA.Constant(expressions.length, expr.val, get_primitive_type("i32")));
+    } else if(expr instanceof UnaryOp){
+        const e = make_ir(expressions, expr.expr, sym_lookup);
+        expressions.push(new SSA.Operation(expressions.length, [e], expr.op, get_primitive_type(expr.op.type)))
+
+    } else if(expr instanceof Constant){
+        expressions.push(new SSA.Constant(expressions.length, expr.val, get_primitive_type(expr.type)));
+
     } else if(expr instanceof Value){
         const sym = sym_lookup.get_symbol(expr.name);
         if(!sym) {

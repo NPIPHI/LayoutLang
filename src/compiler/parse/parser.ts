@@ -9,8 +9,7 @@ class ErrorListener{
     exitEveryRule(){}
     visitTerminal(){}
     visitErrorNode(node: any){
-        let base = `Parse error at symbol ${node.getText()}, line: ${node.symbol.line}, column: ${node.symbol.column}<br>`
-        throw base;
+        throw `Parse error at symbol ${node.getText()}, line: ${node.symbol.line}, column: ${node.symbol.column}`
     }
 }
 

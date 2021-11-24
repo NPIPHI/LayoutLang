@@ -203,6 +203,16 @@ function decodeIntBuffer(encodedBuffer: Uint8Array, index: number): {value: numb
   return decodeBufferCommon(encodedBuffer, index, true);
 }
 
+
+export function encodeF32(f: number): Uint8Array {
+  return new Uint8Array(new Float32Array([f]).buffer);
+}
+
+
+export function encodeF64(f: number): Uint8Array {
+  return new Uint8Array(new Float64Array([f]).buffer);
+}
+
 export function encodeInt32(num: number): Uint8Array {
   if(num >= 0 && num < 64) return new Uint8Array([num]);
   const buf = new Uint8Array(new Int32Array([num]).buffer);

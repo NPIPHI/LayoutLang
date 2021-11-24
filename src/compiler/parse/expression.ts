@@ -3,7 +3,7 @@ import { ParserFunction, parse_statement, Statement } from "./statment";
 import { Identifier, Argument } from "../type";
 import LayoutLangParser  from "./parse/LayoutLangParser";
 export class Constant{
-    constructor(public val: number){}
+    constructor(public val: number, public type: "int" | "float"){}
 }
 export type Operation = "*" | "/" | "+" | "-" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!=";
 export namespace OP {
@@ -20,6 +20,10 @@ export class BinaryOp {
     constructor(public left: Expression, public op: Operation, public right: Expression){}
 }
 
+export class UnaryOp {
+    constructor(public expr: Expression, public op: Operation){};
+}
+
 export class FunctionCall{
     constructor(public name: Identifier, public args: Expression[]){};
 }
@@ -28,7 +32,7 @@ export class IfExpression{
     constructor(public pred: Expression, public then_body: Statement[], public else_body: Statement[]){};
 }
 
-export type Expression = BinaryOp | Constant | Identifier | FunctionCall | IfExpression;
+export type Expression = UnaryOp | BinaryOp | Constant | Identifier | FunctionCall | IfExpression;
 
 function parse_arg(ctx: any){
     return new Argument(new Identifier(ctx.name.text), ctx.type_decl.getText());
@@ -50,7 +54,9 @@ export function parse_function(ctx: LayoutLangParser): ParserFunction{
 
 export function parse_expression(ctx: ParserContext): Expression {
     if(ctx instanceof LayoutLangParser.IntegerContext){
-        return new Constant(parseInt(ctx.getText()));
+        return new Constant(parseInt(ctx.getText()), "int");
+    } else if(ctx instanceof LayoutLangParser.FloatValContext){
+        return new Constant(parseFloat(ctx.getText()), "float");
     } else if(ctx instanceof LayoutLangParser.IdentifierContext){
         return new Identifier(ctx.getText());
     } else if(ctx instanceof LayoutLangParser.ParenExprContext){
@@ -66,8 +72,14 @@ export function parse_expression(ctx: ParserContext): Expression {
             const op = OP.from(ctx.children[1].getText());
             const right = parse_expression(ctx.children[2]);
             return new BinaryOp(left, op, right);
-        } else {
+        } else if(ctx.children.length == 2){
+            const expr = parse_expression(ctx.children[1]);
+            const op = ctx.children[0].getText();
+            return new UnaryOp(expr, OP.from(ctx.children[0].getText()));
+        } else if(ctx.children.length == 1) {
             return parse_expression(ctx.children[0]);
+        } else {
+            throw "unexpected number of children";
         }
     } else {
         throw "unrecognized expression form";

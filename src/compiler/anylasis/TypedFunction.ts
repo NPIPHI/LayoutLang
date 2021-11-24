@@ -3,7 +3,7 @@ import * as Untyped from "../parse/expression";
 import { Identifier, Type, Argument } from "../type";
 import { Statement as UntypedStatement, LetStatment as UntypedLetStatement, ReturnStatement as UntypedReturnStatement} from "../parse/statment"
 import { ParserFunction } from "../parse/statment";
-import { Operation, make_binary_op } from "./Operation";
+import { Operation, make_binary_op, make_unary_op } from "./Operation";
 
 export class ValueIdentifier {
     constructor(public type: Type, public name: Identifier){};
@@ -17,12 +17,16 @@ export class FunctionIdentifier {
     constructor(public type: Type, public name: Identifier, public args: Type[]){};
 }
 
-export class IntConstant {
+export class Constant {
     constructor(public type: Type, public val: number){};
 }
     
 export class BinaryOp {
     constructor(public type: Type, public left: Expression, public op: Operation, public right: Expression){}
+}
+
+export class UnaryOp {
+    constructor(public type: Type, public expr: Expression, public op: Operation){}
 }
 
 export class FunctionCall {
@@ -33,7 +37,7 @@ export class IfExpression {
     constructor(public type: Type, public pred: Expression, public then_body: Statement[], public else_body: Statement[]){};
 }
 
-export type Expression = IntConstant | BinaryOp | FunctionCall | Value | IfExpression;
+export type Expression = Constant | BinaryOp | UnaryOp | FunctionCall | Value | IfExpression;
 
 export class LetStatement{
     constructor(public name: ValueIdentifier, public expr: Expression){};
@@ -89,7 +93,12 @@ class IdentifierLookupTable{
 
 function make_typed_expression(expr: Untyped.Expression, lookup: IdentifierLookupTable): Expression{
     if(expr instanceof Untyped.Constant){
-        return new IntConstant("i32", expr.val);
+        switch(expr.type){
+            case "int":
+                return new Constant("i64", expr.val);
+            case "float":
+                return new Constant("f64", expr.val);
+        }
     } else if(expr instanceof Identifier) {
         const symbol = lookup.get_symbol(expr);
         if(!symbol) throw "symbol not found: " + expr.name;
@@ -134,6 +143,11 @@ function make_typed_expression(expr: Untyped.Expression, lookup: IdentifierLooku
         if(then_return != else_return) throw `if expression type mismatch: ${then_return} != ${else_return}`
 
         return new IfExpression(then_return, pred, then_body, else_body);
+    } else if(expr instanceof Untyped.UnaryOp){
+        const child_expr = make_typed_expression(expr.expr, lookup);
+        const operation =  make_unary_op(child_expr.type, expr.op);
+
+        return new UnaryOp(operation.type, child_expr, operation);
     } else {
         throw "unexpected expression type";
     }

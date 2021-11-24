@@ -34,9 +34,9 @@ export const i32 = {
 }
 
 export const i64 = {
-    const: new Uint8Array([0x41]),
-    load: new Uint8Array([0x28]),
-    store: new Uint8Array([0x36]),
+    const: new Uint8Array([0x42]),
+    load: new Uint8Array([0x29]),
+    store: new Uint8Array([0x37]),
     eqz: new Uint8Array([0x50]),
     eq: new Uint8Array([0x51]),
     ne: new Uint8Array([0x52]),
@@ -70,6 +70,8 @@ export const i64 = {
 
 export const f32 = {
     const: new Uint8Array([0x43]),
+    load: new Uint8Array([0x2A]),
+    store: new Uint8Array([0x38]),
     eq: new Uint8Array([0x5B]),
     ne: new Uint8Array([0x5C]),
     lt: new Uint8Array([0x5D]),
@@ -96,6 +98,8 @@ export const f32 = {
 
 export const f64 = {
     const: new Uint8Array([0x44]),
+    load: new Uint8Array([0x2B]),
+    store: new Uint8Array([0x39]),
     eq: new Uint8Array([0x61]),
     ne: new Uint8Array([0x62]),
     lt: new Uint8Array([0x63]),
@@ -140,3 +144,17 @@ export const drop = new Uint8Array([0x1A]);
 export const select = new Uint8Array([0x1B]);
 export const _return = new Uint8Array([0x0f]);
 export const end_func = new Uint8Array([0x0b]);
+
+
+export function merge(buffers: Uint8Array[]): Uint8Array{
+    const length = buffers.reduce((a,b)=>a + b.byteLength, 0);
+    const merged = new Uint8Array(length);
+    
+    let idx = 0;
+    for(const buffer of buffers){
+        merged.set(buffer, idx);
+        idx += buffer.byteLength;
+    }
+
+    return merged;
+}

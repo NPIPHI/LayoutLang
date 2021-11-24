@@ -1,5 +1,5 @@
 import { IRFunction } from "../anylasis/SSAFunction";
-import { encodeInt32, encodeInt64 } from "./leb/leb";
+import { encodeInt32, encodeInt64, encodeF32, encodeF64 } from "./leb/leb";
 import * as SSA from "../anylasis/SSA"
 import { BuiltinFunction } from "./decompile";
 import { Type } from "../type";
@@ -8,42 +8,20 @@ import { T, PrimitiveType, get_primitive_type } from "./primitiveTypes";
 
 export type ExportKind = Uint8Array;
 
-function encodeF32(f: number): Uint8Array {
-    return new Uint8Array(new Float32Array([f]).buffer);
-}
-
-
-function encodeF64(f: number): Uint8Array {
-    return new Uint8Array(new Float64Array([f]).buffer);
-}
-
-function merge_buffers(buffers: Uint8Array[]): Uint8Array{
-    const length = buffers.reduce((a,b)=>a + b.byteLength, 0);
-    const merged = new Uint8Array(length);
-    
-    let idx = 0;
-    for(const buffer of buffers){
-        merged.set(buffer, idx);
-        idx += buffer.byteLength;
-    }
-
-    return merged;
-}
-
 function make_lenth_encoding(buffers: Uint8Array[]): Uint8Array {
     const length = buffers.reduce((a,b)=>a + b.byteLength, 0);
-    return merge_buffers([encodeInt32(length), ...buffers]);
+    return I.merge([encodeInt32(length), ...buffers]);
 }
 
 function make_vec(buffers: Uint8Array[]): Uint8Array {
-    return merge_buffers([encodeInt32(buffers.length), ...buffers])
+    return I.merge([encodeInt32(buffers.length), ...buffers])
 }
 
 function make_sized_vec(buffers: Uint8Array[]): Uint8Array {
     const length_buffers = buffers.reduce((a,b)=>a + b.byteLength, 0);
     const count = encodeInt32(buffers.length);
     const length = encodeInt32(length_buffers + count.length);
-    return merge_buffers([length, count, ...buffers])
+    return I.merge([length, count, ...buffers])
 }
 
 function make_constant(constant: SSA.Constant){
@@ -64,7 +42,7 @@ function make_constant(constant: SSA.Constant){
 function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<string, number>, depth: number): Uint8Array[]{
     return [
         ...gen_code(code, expr.pred_idx, function_map, depth), 
-        T.branch_if_else, T.i32,         
+        T.branch_if_else, expr.type,         
             ...gen_code(code, expr.then_idx, function_map, depth + 1), 
         T.branch_else,
             ...gen_code(code, expr.else_idx, function_map, depth + 1),
@@ -99,7 +77,7 @@ function get_primitve_type_or_void(t: Type): PrimitiveType | 0 {
 function make_wasm_function(func: IRFunction, function_map: Map<string, number>): WasmFunction {
     let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map, 0);
     code.push(I.end_func);
-    return new WasmFunction(func.name.name, func.args.map(get_primitive_type), get_primitve_type_or_void(func.return_type), merge_buffers(code), []);
+    return new WasmFunction(func.name.name, func.args.map(get_primitive_type), get_primitve_type_or_void(func.return_type), I.merge(code), []);
 }
 
 export class WasmFunction {
@@ -111,7 +89,7 @@ export class WasmFunction {
         const num_outputs = encodeInt32((this.output != 0) ? 1 : 0);
         const output = this.output || new Uint8Array(0);
 
-        return merge_buffers([func_type, num_inputs, ...this.inputs, num_outputs, output]);
+        return I.merge([func_type, num_inputs, ...this.inputs, num_outputs, output]);
     }
 
     encodeCode(): Uint8Array {
@@ -128,7 +106,7 @@ class TypeSection {
         const id = encodeInt32(1);
         const type_encodings = this.functions.map(f=>f.encodeType())
 
-        return merge_buffers([id, make_sized_vec(type_encodings)]);
+        return I.merge([id, make_sized_vec(type_encodings)]);
     }
 }
 
@@ -139,7 +117,7 @@ class FunctionSection {
         const id = T.function_section;
         const index_functions = this.functions.map((_,i)=>encodeInt32(i));
 
-        return merge_buffers([id, make_sized_vec(index_functions)]);
+        return I.merge([id, make_sized_vec(index_functions)]);
     }
 }
 
@@ -152,7 +130,7 @@ class FunctionExport {
         const name_size = encodeInt32(name.length);
         const index = encodeInt32(this.exportIndex);
 
-        return merge_buffers([name_size, name, T.export_func, index]);
+        return I.merge([name_size, name, T.export_func, index]);
     }
 }
 
@@ -164,7 +142,7 @@ class MemoryExport {
         const name_size = encodeInt32(name.length);
         const index = encodeInt32(0);
 
-        return merge_buffers([name_size, name, T.export_mem, index]);
+        return I.merge([name_size, name, T.export_mem, index]);
     }
 }
 
@@ -175,7 +153,7 @@ class ExportSection {
         const id = T.export_section;
         const exports = this.exports.map(e=>e.encode());
     
-        return merge_buffers([id, make_sized_vec(exports)]);
+        return I.merge([id, make_sized_vec(exports)]);
     }
 }
 
@@ -186,7 +164,7 @@ class CodeSection {
         const id = T.code_section;
         const funcs = this.functions.map(f=>f.encodeCode());
         
-        return merge_buffers([id, make_sized_vec(funcs)]);
+        return I.merge([id, make_sized_vec(funcs)]);
     }
 }
 
@@ -197,10 +175,10 @@ class Memory {
         if(this.max != undefined){
             const min = encodeInt32(this.min);
             const max = encodeInt32(this.max);
-            return merge_buffers([T.limit_min_max, min, max]);
+            return I.merge([T.limit_min_max, min, max]);
         } else {
             const min = encodeInt32(this.min);
-            return merge_buffers([T.limit_min, min]);
+            return I.merge([T.limit_min, min]);
         }
         
     }
@@ -211,7 +189,7 @@ class MemorySection{
         const id = T.memory_section;
         const mem = new Memory(1, undefined).encode()
 
-        return merge_buffers([id, make_sized_vec([mem])]);
+        return I.merge([id, make_sized_vec([mem])]);
     }
 }
 
@@ -221,7 +199,7 @@ class DataSection{
     encode(): Uint8Array {
         const id = T.data_section;
         const len = encodeInt32(this.static_data.length);
-        return merge_buffers([id, len, this.static_data]);
+        return I.merge([id, len, this.static_data]);
     }
 }
 
@@ -232,7 +210,7 @@ class DataCountSection{
         const id = T.data_count_section;
         const data = encodeInt32(this.data_count);
         const len = encodeInt32(data.length);
-        return merge_buffers([id, len, data]);
+        return I.merge([id, len, data]);
     }
 }
 
@@ -256,6 +234,6 @@ export class WasmOutput {
         const static_data = new DataSection(this.static_data).encode();
         const data_count_data = new DataCountSection(this.data_count).encode();
 
-        return merge_buffers([header, binary_version, type_data, function_data, memory_data, export_data, data_count_data, code_data, static_data]);
+        return I.merge([header, binary_version, type_data, function_data, memory_data, export_data, data_count_data, code_data, static_data]);
     }
 }

@@ -131,15 +131,6 @@ export default class LayoutLangListener extends antlr4.tree.ParseTreeListener {
 	}
 
 
-	// Enter a parse tree produced by LayoutLangParser#binaryop.
-	enterBinaryop(ctx) {
-	}
-
-	// Exit a parse tree produced by LayoutLangParser#binaryop.
-	exitBinaryop(ctx) {
-	}
-
-
 	// Enter a parse tree produced by LayoutLangParser#identifier.
 	enterIdentifier(ctx) {
 	}
@@ -155,6 +146,15 @@ export default class LayoutLangListener extends antlr4.tree.ParseTreeListener {
 
 	// Exit a parse tree produced by LayoutLangParser#integer.
 	exitInteger(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#floatVal.
+	enterFloatVal(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#floatVal.
+	exitFloatVal(ctx) {
 	}
 
 

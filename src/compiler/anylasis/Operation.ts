@@ -1,6 +1,7 @@
 import {Type} from '../type'
 import * as Untyped from "../parse/expression"
 import * as I from "../instructions"
+import { encodeF32, encodeF64, encodeInt32 } from '../codegen/leb/leb'
 
 export class Operation {
     constructor(public type: Type, public args: Type[], public code: Uint8Array){};
@@ -54,6 +55,13 @@ const binary_op_table = [
     {o: ">=", l: "f64", r: "f64", v: new Operation("bool", ["f64", "f64"], I.f64.ge)},
 ]
 
+const unary_op_table = [
+    {o: "-", e: "i32", v: new Operation("i32", ["i32"], I.merge([I.i32.const, encodeInt32(-1), I.i32.mul]))},
+    {o: "-", e: "i64", v: new Operation("i64", ["i64"], I.merge([I.i64.const, encodeInt32(-1), I.i64.mul]))},
+    {o: "-", e: "f32", v: new Operation("f32", ["f32"], I.merge([I.f32.const, encodeF32(-1), I.f32.mul]))},
+    {o: "-", e: "f64", v: new Operation("f64", ["f64"], I.merge([I.f64.const, encodeF64(-1), I.f64.mul]))},
+]
+
 // export type Operation = I32Operation;
 export function make_binary_op(left: Type, op: Untyped.Operation, right: Type): Operation{
     for(const operation of binary_op_table){
@@ -63,4 +71,14 @@ export function make_binary_op(left: Type, op: Untyped.Operation, right: Type): 
     }
 
     throw `no binary operation "${op}" exists between types "${left}" and "${right}"`;
+}
+
+export function make_unary_op(expr: Type, op: Untyped.Operation): Operation{
+    for(const operation of unary_op_table){
+        if(operation.o == op && operation.e == expr){
+            return operation.v;
+        }
+    }
+
+    throw `no unarty operation "${op}" exists on type "${expr}"`;
 }
