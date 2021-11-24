@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="module" src="https://cdn.jsdelivr.net/gh/vanillawc/wc-monaco-editor@1/index.js"></script>
+    <title>Layout Lang</title>
+</head>
+<body>
+    <style>
+        body {
+            overflow: hidden;
+        }
+        * {
+            padding: 0;
+            margin: 0;
+        }
+        #console-area {
+            height: 100vh;
+            width: 50vw;
+            padding-left: 50vw;;
+            background-color: gray;
+        }
+    </style>
+    <wc-monaco-editor id="code-area" language="typescript" style="width: 50vw; height: 100vh; float:left"></wc-monaco-editor>
+    <div id="console-area"></div>
+    <script src="bundle.js"></script>
+</body>
+</html>
