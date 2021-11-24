@@ -1,3 +1,4 @@
+import { Type } from "../type";
 
 export namespace T {
     export const type_section = new Uint8Array([0x01]);
@@ -23,6 +24,20 @@ export namespace T {
     export const export_global = new Uint8Array([0x03]);
     export const limit_min = new Uint8Array([0x00]);
     export const limit_min_max = new Uint8Array([0x01]);
+    export const branch_if_else = new Uint8Array([0x04]);
+    export const branch_else = new Uint8Array([0x05]);
+    export const branch_end = new Uint8Array([0x0B]);
 }
 
 export type PrimitiveType = Uint8Array;
+
+export function get_primitive_type(t: Type): PrimitiveType {
+    if(t == "void") throw "void has no primitive type"
+    return {
+        "i32": T.i32,
+        "i64": T.i64,
+        "f32": T.f32,
+        "f64": T.f64,
+        "bool": T.i32,
+    }[t]
+}

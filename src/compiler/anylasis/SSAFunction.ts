@@ -3,6 +3,7 @@ import { Function, Expression, BinaryOp, FunctionCall, IntConstant, Value, IfExp
 import { Type, Argument } from "../type";
 import * as SSA from "./SSA"
 import { make_binary_op } from "./Operation";
+import { get_primitive_type } from "../codegen/primitiveTypes";
 
 // export class WasmFunction{
 //     constructor(public name: Identifier, public args: Argument[], public type: Type, public code: Uint8Array){}
@@ -26,11 +27,11 @@ class ValueSymbol{
 class ArgSymbol{  
     constructor(arg: Argument, idx: number){
         this.name = arg.name;
-        this.value_type = arg.type;
+        this.type = arg.type;
         this.arg_idx = idx;
     }
     name: Identifier;
-    value_type: Type;
+    type: Type;
     arg_idx: number;
 }
 
@@ -74,9 +75,9 @@ function make_ir(expressions: SSA.Expression[], expr: Expression, sym_lookup: Sy
         const left = make_ir(expressions, expr.left, sym_lookup);
         const op = expr.op;
         const right = make_ir(expressions, expr.right, sym_lookup);
-        expressions.push(new SSA.Operation(expressions.length, [left, right], expr.op));
+        expressions.push(new SSA.Operation(expressions.length, [left, right], expr.op, get_primitive_type(op.type)));
     } else if(expr instanceof IntConstant){
-        expressions.push(new SSA.Constant(expressions.length, expr.val, "i32"));
+        expressions.push(new SSA.Constant(expressions.length, expr.val, get_primitive_type("i32")));
     } else if(expr instanceof Value){
         const sym = sym_lookup.get_symbol(expr.name);
         if(!sym) {
@@ -84,20 +85,20 @@ function make_ir(expressions: SSA.Expression[], expr: Expression, sym_lookup: Sy
         }
         
         if(sym instanceof ArgSymbol){
-            expressions.push(new SSA.ArgIdentifier(expressions.length, sym.arg_idx));
+            expressions.push(new SSA.ArgIdentifier(expressions.length, sym.arg_idx, get_primitive_type(sym.type)));
         } else if(sym instanceof ValueSymbol){
-            expressions.push(new SSA.LocalIdentifier(expressions.length, sym.ssa_index));
+            expressions.push(new SSA.LocalIdentifier(expressions.length, sym.ssa_index, get_primitive_type(sym.type)));
         } else {
             throw "unexpected symbol type, expected value";
         }
     } else if(expr instanceof FunctionCall){
         const args = expr.args.map(a=>make_ir(expressions, a, sym_lookup));
-        expressions.push(new SSA.FunctionIdentifier(expressions.length, expr.name, args));
+        expressions.push(new SSA.FunctionIdentifier(expressions.length, expr.name, args, get_primitive_type(expr.type)));
     } else if(expr instanceof IfExpression){
         const pred_idx = make_ir(expressions, expr.pred, sym_lookup);
         const then_idx = make_IrBody(expressions, expr.then_body, sym_lookup);
         const else_idx = make_IrBody(expressions, expr.else_body, sym_lookup);
-        expressions.push(new SSA.IfBranch(expressions.length, pred_idx, then_idx, else_idx));
+        expressions.push(new SSA.IfBranch(expressions.length, pred_idx, then_idx, else_idx, get_primitive_type(expr.type)));
     } else {
         throw "unexpected expression type";
     }

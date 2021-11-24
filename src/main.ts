@@ -1,6 +1,5 @@
 import { decompile } from "./compiler/codegen/decompile";
-import { decodeInt32, encodeInt32 } from "./compiler/codegen/leb/leb";
-import {Compiler} from "./compiler/compiler";
+import { Compiler } from "./compiler/compiler";
 // const funcs = [
 //     new Function("main", [], T.i32),
 //     new Function("main2", [], T.i32)
@@ -20,6 +19,7 @@ import {Compiler} from "./compiler/compiler";
 // main();
 
 const input = 
+
 `
 fn if_func(a: i32) -> i32{
     return if(a < 2){
@@ -33,48 +33,117 @@ fn if_func(a: i32) -> i32{
     };
 }
 
-fn if_fun2(a: i32) -> i32{
-    return if(a < 2){
-        return if(a < -10){
-            return 0;
+fn trap() -> i32 {
+    return 0 / 0;
+}
+
+fn if_fn2(a: i32) -> i32{
+    return if(a < 0){
+        return if(a < 5){
+            return if(a < 5){
+                return 5;
+            } else {
+                return if(a < 10){
+                    return if(a < 5){
+                        return 5;
+                    } else {
+                        return if(a < 10){
+                            return 10;
+                        } else {
+                            return if(a < 15){
+                                return 15;
+                            } else {
+                                return if(a < 20){
+                                    return 20;
+                                } else {
+                                    return if(a < 25){
+                                        return if(a < 5){
+                                            return 5;
+                                        } else {
+                                            return if(a < 10){
+                                                return 10;
+                                            } else {
+                                                return if(a < 15){
+                                                    return 15;
+                                                } else {
+                                                    return if(a < 20){
+                                                        return 20;
+                                                    } else {
+                                                        return if(a < 25){
+                                                            return 25;
+                                                        } else {
+                                                            return 30;
+                                                        };
+                                                    };
+                                                };
+                                            };
+                                        };
+                                    } else {
+                                        return 30;
+                                    };
+                                };
+                            };
+                        };
+                    };
+                } else {
+                    return if(a < 15){
+                        return 15;
+                    } else {
+                        return if(a < 20){
+                            return 20;
+                        } else {
+                            return if(a < 25){
+                                return 25;
+                            } else {
+                                return 30;
+                            };
+                        };
+                    };
+                };
+            };
         } else {
-            return a + 2;
+            return if(a < 10){
+                return 10;
+            } else {
+                return if(a < 15){
+                    return 15;
+                } else {
+                    return if(a < 20){
+                        return 20;
+                    } else {
+                        return if(a < 25){
+                            return 25;
+                        } else {
+                            return 30;
+                        };
+                    };
+                };
+            };
         };
     } else {
-        return a * 100;
-    };
-}
-
-
-fn if_func3(a: i32) -> i32{
-    return if(a < 2){
-        return if(a < -10){
-            return 0;
+        return if(a < 5){
+            return 5;
         } else {
-            return a + 2;
+            return if(a < 10){
+                return 10;
+            } else {
+                return if(a < 15){
+                    return 15;
+                } else {
+                    return if(a < 20){
+                        return 20;
+                    } else {
+                        return if(a < 25){
+                            return 25;
+                        } else {
+                            return 30;
+                        };
+                    };
+                };
+            };
         };
-    } else {
-        return a * 100;
     };
 }
-
-
-fn if_func4(a: i32) -> i32{
-    return if(a < 2){
-        return if(a < -10){
-            return 0;
-        } else {
-            return a + 2;
-        };
-    } else {
-        return a * 100;
-    };
-}
-
-fn make_squared(a: i32) -> i32 {
-    return square(a);
-}
-
 
 `
 
@@ -82,17 +151,9 @@ fn make_squared(a: i32) -> i32 {
 async function main(){
     const builtins = await decompile("../cppsrc/stack_alloc.wasm");
 
-    console.time("compile");
-    for(let i = 0; i < 1000; i++){
-        const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input)
-    }
-    console.timeEnd("compile");
-
     const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input)
 
-    
-    const {module, instance} = await WebAssembly.instantiate(binary);
-    console.log((instance.exports as any).if_func(1));
+    const {instance} = await WebAssembly.instantiate(binary);
     (globalThis as any).e = instance.exports;
 }
 main();

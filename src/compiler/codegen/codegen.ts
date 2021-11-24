@@ -4,7 +4,7 @@ import * as SSA from "../anylasis/SSA"
 import { BuiltinFunction } from "./decompile";
 import { Type } from "../type";
 import * as I from "../instructions"
-import { T, PrimitiveType } from "./primitiveTypes";
+import { T, PrimitiveType, get_primitive_type } from "./primitiveTypes";
 
 export type ExportKind = Uint8Array;
 
@@ -48,33 +48,44 @@ function make_sized_vec(buffers: Uint8Array[]): Uint8Array {
 
 function make_constant(constant: SSA.Constant){
     switch(constant.type){
-        case "i32":
+        case T.i32:
             return [I.i32.const, encodeInt32(constant.val)];
-        case "f32":
+        case T.f32:
             return [I.f32.const, encodeF32(constant.val)];
-        case "i64":
+        case T.i64:
             return [I.i64.const, encodeInt64(constant.val)];
-        case "f64":
+        case T.f64:
             return [I.f64.const, encodeF64(constant.val)];
         default:
             throw "no known constant scheme for type: " + constant.type;
     }
 }
 
-function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, number>) : Uint8Array[]{
+function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<string, number>, depth: number): Uint8Array[]{
+    return [
+        ...gen_code(code, expr.pred_idx, function_map, depth), 
+        T.branch_if_else, T.i32,         
+            ...gen_code(code, expr.then_idx, function_map, depth + 1), 
+        T.branch_else,
+            ...gen_code(code, expr.else_idx, function_map, depth + 1),
+        T.branch_end,
+    ];
+}
+
+function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, number>, depth: number) : Uint8Array[]{
     const expr = code[idx];
     if(expr instanceof SSA.Constant){
         return make_constant(expr);
     } else if(expr instanceof SSA.ArgIdentifier){
         return [I.local.get, encodeInt32(expr.src_idx)];
     } else if(expr instanceof SSA.LocalIdentifier){
-        return gen_code(code, expr.src_idx, function_map);
+        return gen_code(code, expr.src_idx, function_map, depth);
     } else if(expr instanceof SSA.FunctionIdentifier){
-        return [...expr.args.flatMap(n=>gen_code(code, n, function_map)), I.call, encodeInt32(function_map.get(expr.func.name))];
+        return [...expr.args.flatMap(n=>gen_code(code, n, function_map, depth)), I.call, encodeInt32(function_map.get(expr.func.name))];
     } else if(expr instanceof SSA.Operation){
-        return [...expr.sources.flatMap(s=>gen_code(code, s, function_map)), expr.op.code];
+        return [...expr.sources.flatMap(s=>gen_code(code, s, function_map, depth)), expr.op.code];
     } else if(expr instanceof SSA.IfBranch){
-        return [...gen_code(code, expr.then_idx, function_map), ...gen_code(code, expr.else_idx, function_map), ...gen_code(code, expr.pred_idx, function_map), I.select];
+        return gen_if(code, expr, function_map, depth);
     } else {
         throw "unexpected ssa expression";
     }
@@ -85,19 +96,8 @@ function get_primitve_type_or_void(t: Type): PrimitiveType | 0 {
     return get_primitive_type(t);
 }
 
-function get_primitive_type(t: Type): PrimitiveType {
-    return {
-        "i32": T.i32,
-        "i64": T.i64,
-        "f32": T.f32,
-        "f64": T.f64,
-        "bool": T.i32,
-        "void": T.i32
-    }[t]
-}
-
 function make_wasm_function(func: IRFunction, function_map: Map<string, number>): WasmFunction {
-    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map);
+    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map, 0);
     code.push(I.end_func);
     return new WasmFunction(func.name.name, func.args.map(get_primitive_type), get_primitve_type_or_void(func.return_type), merge_buffers(code), []);
 }
