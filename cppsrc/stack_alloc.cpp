@@ -26,20 +26,5 @@ extern "C" {
     void reset_alloc(){
         stack_ptr = BASE_STACK_PTR;
     }
-    int square(int a){
-        return a*a;
-    }
+    
 }
-
-// extern int f();
-// extern int f2();
-// extern void f3(int);
-// void loop_n(int n){
-//     int a;
-//     if(n){
-//         a = f();
-//     } else {
-//         a = f2();
-//     }
-//     f3(a);
-// }

@@ -18,10 +18,13 @@ export class ParserFunction {
 
 function parse_let_statement(ctx: LayoutLangParser): LetStatment{
     const [_1, name, _2, expr, _3] = (ctx as any).children;
+    if(!name) throw "no identifier in let statement";
+    if(!expr) throw "no expreession in let statement";
     return new LetStatment(new Identifier(name.getText()), parse_expression(expr));
 }
 function parse_return_statement(ctx: LayoutLangParser): ReturnStatement{
     const [_1, expr, _2] = (ctx as any).children;
+    if(!expr) throw "no expreession in return statement";
     return new ReturnStatement(parse_expression(expr));
 }
 

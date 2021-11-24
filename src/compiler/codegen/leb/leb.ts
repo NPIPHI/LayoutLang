@@ -204,7 +204,7 @@ function decodeIntBuffer(encodedBuffer: Uint8Array, index: number): {value: numb
 }
 
 export function encodeInt32(num: number): Uint8Array {
-  if(num >= 0 && num < 128) return new Uint8Array([num]);
+  if(num >= 0 && num < 64) return new Uint8Array([num]);
   const buf = new Uint8Array(new Int32Array([num]).buffer);
 
   var result = encodeIntBuffer(buf);

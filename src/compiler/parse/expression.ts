@@ -43,6 +43,7 @@ function parse_args(ctx: LayoutLangParser): Argument[] {
 }
 export function parse_function(ctx: LayoutLangParser): ParserFunction{
     if(!(ctx instanceof LayoutLangParser.FuncContext)) throw "Expected FunctionContext";
+    if(!ctx.type_decl) throw "missing type declaration"
     return new ParserFunction(new Identifier(ctx.name.text), parse_args(ctx.arguments) , ctx.type_decl.getText(), parse_body(ctx.func_body));
 }
 
@@ -59,6 +60,7 @@ export function parse_expression(ctx: ParserContext): Expression {
     } else if(ctx instanceof LayoutLangParser.IfExprContext){
         return new IfExpression(parse_expression(ctx.pred), parse_body(ctx.then_body), parse_body(ctx.else_body));
     } else if(ctx instanceof LayoutLangParser.ExprContext){
+        if(!ctx.children) throw `Error: parse error at "${ctx.parentCtx.getText()}", line: ${ctx.start.line}, column: ${ctx.start.column}`
         if(ctx.children.length == 3){
             const left = parse_expression(ctx.children[0]);
             const op = OP.from(ctx.children[1].getText());

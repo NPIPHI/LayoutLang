@@ -4,6 +4,16 @@ import LayoutLangParser from "./parse/LayoutLangParser";
 import {parse_function} from "./expression"
 import {ParserFunction} from "./statment"
 
+class ErrorListener{
+    enterEveryRule(){}
+    exitEveryRule(){}
+    visitTerminal(){}
+    visitErrorNode(node: any){
+        let base = `Parse error at symbol ${node.getText()}, line: ${node.symbol.line}, column: ${node.symbol.column}<br>`
+        throw base;
+    }
+}
+
 export class Parser {
     funcs: ParserFunction[];
     public parse(input: string): ParserFunction[] { 
@@ -14,6 +24,7 @@ export class Parser {
         const tokens = new antlr.CommonTokenStream(lexer);
         const parser = new LayoutLangParser(tokens) as any;
         parser.buildParseTrees = true;
+        parser.addParseListener(new ErrorListener());
         const tree = parser.body();
 
         return tree.functions.map(parse_function);

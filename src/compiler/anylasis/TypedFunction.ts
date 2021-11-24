@@ -71,7 +71,7 @@ class IdentifierLookupTable{
     }
 
     add_symbol(s: ValueIdentifier | FunctionIdentifier){
-        if(this.symbols.has(s.name.name)) throw "already added identifier";
+        if(this.symbols.has(s.name.name)) throw `Error: symbol "${s.name.name}" redefined`;
         
         this.symbols.set(s.name.name, s);
     }
@@ -168,6 +168,8 @@ function make_typed_function(func: ParserFunction, func_lookup: IdentifierLookup
         lookup.add_symbol(new ValueIdentifier(arg.type, arg.name));
     }
     const body = make_typed_body(func.body, lookup);
+    const body_type = get_return_type(body);
+    if(type != body_type) throw `Type mismatch, return type "${type}" not equalt to body's return type "${body_type}"`
     return new Function(name, args, type, body);
 }
 
