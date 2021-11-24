@@ -1,8 +1,6 @@
-import { Expression, Identifier, parse_expression} from "./expression";
-import { ParserContext } from "./parserContext";
-import * as contexts from "./parse/LayoutLangParser"
-
-export type Type = string;
+import { Expression, parse_expression} from "./expression";
+import { Identifier, Argument, Type } from "../type";
+import LayoutLangParser from "./parse/LayoutLangParser"
 
 export class ReturnStatement {
     constructor(public expr: Expression){}
@@ -18,28 +16,24 @@ export class ParserFunction {
     constructor(public name: Identifier, public args: Argument[], public return_type: Type, public body: Statement[]){}
 }
 
-export class Argument {
-    constructor(public name: Identifier, public type: Type){}
-}
-
-function parse_let_statement(ctx: contexts.LetStatementContext): LetStatment{
+function parse_let_statement(ctx: LayoutLangParser): LetStatment{
     const [_1, name, _2, expr, _3] = (ctx as any).children;
     return new LetStatment(new Identifier(name.getText()), parse_expression(expr));
 }
-function parse_return_statement(ctx: contexts.ReturnStatementContext): ReturnStatement{
+function parse_return_statement(ctx: LayoutLangParser): ReturnStatement{
     const [_1, expr, _2] = (ctx as any).children;
     return new ReturnStatement(parse_expression(expr));
 }
 
-export function parse_statement(ctx: contexts.StatementContext): Statement {
-    if(!(ctx instanceof contexts.StatementContext)) throw "Expected Statment";
+export function parse_statement(ctx: LayoutLangParser): Statement {
+    if(!(ctx instanceof LayoutLangParser.StatementContext)) throw "Expected Statment";
 
     let statement = (ctx as any).children[0];
 
-    if(statement instanceof contexts.ReturnStatementContext){
-        return parse_return_statement(statement);
-    } else if(statement instanceof contexts.LetStatementContext){
-        return parse_let_statement(statement);
+    if(statement instanceof LayoutLangParser.ReturnStatementContext){
+        return parse_return_statement(statement as any);
+    } else if(statement instanceof LayoutLangParser.LetStatementContext){
+        return parse_let_statement(statement as any);
     }
 
     throw "unrecognized statement";

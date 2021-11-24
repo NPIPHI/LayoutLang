@@ -47,6 +47,10 @@
     local.get 1)
   (func $reset_alloc (type 1)
     i32.const 0
-    i32.const 0
+    i32.const 128
     i32.store)
+  (func $square (type 0) (param i32) (result i32)
+    local.get 0
+    local.get 0
+    i32.mul)
   (data $_ZL9stack_ptr (i32.const 0) "\80\00\00\00"))

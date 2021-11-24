@@ -1,96 +1,22 @@
 import { IRFunction } from "../anylasis/SSAFunction";
-import { encodeInt32 } from "./leb/leb";
+import { encodeInt32, encodeInt64 } from "./leb/leb";
 import * as SSA from "../anylasis/SSA"
-import { Operation } from "../parse/expression";
+import { BuiltinFunction } from "./decompile";
+import { Type } from "../type";
+import * as I from "../instructions"
+import { T, PrimitiveType } from "./primitiveTypes";
 
-export namespace T {
-    export const type_section = new Uint8Array([0x01]);
-    export const import_section = new Uint8Array([0x02]);
-    export const function_section = new Uint8Array([0x03]);
-    export const table_section = new Uint8Array([0x04]);
-    export const memory_section = new Uint8Array([0x05]);
-    export const global_section = new Uint8Array([0x06]);
-    export const export_section = new Uint8Array([0x07]);
-    export const start_section = new Uint8Array([0x08]);
-    export const element_section = new Uint8Array([0x09]);
-    export const code_section = new Uint8Array([0x0a]);
-    export const data_section = new Uint8Array([0x0b]);
-    export const data_count_section = new Uint8Array([0x0c]);
-    export const func = new Uint8Array([0x60]);
-    export const i32 = new Uint8Array([0x7f]);
-    export const i64 = new Uint8Array([0x7e]);
-    export const f32 = new Uint8Array([0x7d]);
-    export const f64 = new Uint8Array([0x7c]);
-    export const export_func = new Uint8Array([0x00]);
-    export const export_table = new Uint8Array([0x01]);
-    export const export_mem = new Uint8Array([0x02]);
-    export const export_global = new Uint8Array([0x03]);
-    export const limit_min = new Uint8Array([0x00]);
-    export const limit_min_max = new Uint8Array([0x01]);
-}
-
-namespace I {
-    export const i32 = {
-        const: new Uint8Array([0x41]),
-        load: new Uint8Array([0x28]),
-        store: new Uint8Array([0x36]),
-        eqz: new Uint8Array([0x45]),
-        eq: new Uint8Array([0x46]),
-        ne: new Uint8Array([0x47]),
-        lt_s: new Uint8Array([0x48]),
-        lt_u: new Uint8Array([0x49]),
-        gt_s: new Uint8Array([0x4A]),
-        gt_u: new Uint8Array([0x4B]),
-        le_s: new Uint8Array([0x4C]),
-        le_u: new Uint8Array([0x4D]),
-        ge_s: new Uint8Array([0x4E]),
-        ge_u: new Uint8Array([0x4F]),
-        clz: new Uint8Array([0x67]),
-        ctz: new Uint8Array([0x68]),
-        popcnt: new Uint8Array([0x69]),
-        add: new Uint8Array([0x6A]),
-        sub: new Uint8Array([0x6B]),
-        mul: new Uint8Array([0x6C]),
-        div_s: new Uint8Array([0x6D]),
-        div_u: new Uint8Array([0x6E]),
-        rem_s: new Uint8Array([0x6F]),
-        rem_u: new Uint8Array([0x70]),
-        and: new Uint8Array([0x71]),
-        or: new Uint8Array([0x72]),
-        xor: new Uint8Array([0x73]),
-        shl: new Uint8Array([0x74]),
-        shr_s: new Uint8Array([0x75]),
-        shr_u: new Uint8Array([0x76]),
-        rotl: new Uint8Array([0x77]),
-        rotr: new Uint8Array([0x78]),
-    }
-
-    export const memory = {
-        grow: new Uint8Array([0x40, 0x00]),
-        size: new Uint8Array([0x3f, 0x00])
-    }
-
-    export const local = {
-        get: new Uint8Array([0x20]),
-        set: new Uint8Array([0x21]),
-        tee: new Uint8Array([0x22])
-    }
-
-    export const global = {
-        get: new Uint8Array([0x23]),
-        set: new Uint8Array([0x24])
-    }
-
-    export const call = new Uint8Array([0x10]);
-    export const call_inderect = new Uint8Array([0x11]);
-    export const drop = new Uint8Array([0x1A]);
-    export const select = new Uint8Array([0x1B]);
-    export const _return = new Uint8Array([0x0f]);
-    export const end_func = new Uint8Array([0x0b]);
-}
-
-export type PrimitiveType = Uint8Array;
 export type ExportKind = Uint8Array;
+
+function encodeF32(f: number): Uint8Array {
+    return new Uint8Array(new Float32Array([f]).buffer);
+}
+
+
+function encodeF64(f: number): Uint8Array {
+    return new Uint8Array(new Float64Array([f]).buffer);
+}
+
 function merge_buffers(buffers: Uint8Array[]): Uint8Array{
     const length = buffers.reduce((a,b)=>a + b.byteLength, 0);
     const merged = new Uint8Array(length);
@@ -120,36 +46,60 @@ function make_sized_vec(buffers: Uint8Array[]): Uint8Array {
     return merge_buffers([length, count, ...buffers])
 }
 
-function get_op(op: Operation): Uint8Array{
-    return {
-        "+": I.i32.add,
-        "-": I.i32.sub,
-        "*": I.i32.mul,
-        "/": I.i32.div_s
-    }[op]
+function make_constant(constant: SSA.Constant){
+    switch(constant.type){
+        case "i32":
+            return [I.i32.const, encodeInt32(constant.val)];
+        case "f32":
+            return [I.f32.const, encodeF32(constant.val)];
+        case "i64":
+            return [I.i64.const, encodeInt64(constant.val)];
+        case "f64":
+            return [I.f64.const, encodeF64(constant.val)];
+        default:
+            throw "no known constant scheme for type: " + constant.type;
+    }
 }
 
 function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, number>) : Uint8Array[]{
     const expr = code[idx];
     if(expr instanceof SSA.Constant){
-        return [I.i32.const, encodeInt32(expr.val)];
+        return make_constant(expr);
     } else if(expr instanceof SSA.ArgIdentifier){
         return [I.local.get, encodeInt32(expr.src_idx)];
     } else if(expr instanceof SSA.LocalIdentifier){
         return gen_code(code, expr.src_idx, function_map);
     } else if(expr instanceof SSA.FunctionIdentifier){
         return [...expr.args.flatMap(n=>gen_code(code, n, function_map)), I.call, encodeInt32(function_map.get(expr.func.name))];
-    } else if(expr instanceof SSA.BinaryOp){
-        return [...gen_code(code, expr.left, function_map), ...gen_code(code, expr.right, function_map), get_op(expr.op.op)];
+    } else if(expr instanceof SSA.Operation){
+        return [...expr.sources.flatMap(s=>gen_code(code, s, function_map)), expr.op.code];
+    } else if(expr instanceof SSA.IfBranch){
+        return [...gen_code(code, expr.then_idx, function_map), ...gen_code(code, expr.else_idx, function_map), ...gen_code(code, expr.pred_idx, function_map), I.select];
     } else {
         throw "unexpected ssa expression";
     }
 }
 
+function get_primitve_type_or_void(t: Type): PrimitiveType | 0 {
+    if(t == "void") return 0;
+    return get_primitive_type(t);
+}
+
+function get_primitive_type(t: Type): PrimitiveType {
+    return {
+        "i32": T.i32,
+        "i64": T.i64,
+        "f32": T.f32,
+        "f64": T.f64,
+        "bool": T.i32,
+        "void": T.i32
+    }[t]
+}
+
 function make_wasm_function(func: IRFunction, function_map: Map<string, number>): WasmFunction {
     let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map);
     code.push(I.end_func);
-    return new WasmFunction(func.name.name, func.args.map(a=>T.i32), T.i32, merge_buffers(code), []);
+    return new WasmFunction(func.name.name, func.args.map(get_primitive_type), get_primitve_type_or_void(func.return_type), merge_buffers(code), []);
 }
 
 export class WasmFunction {
@@ -287,7 +237,7 @@ class DataCountSection{
 }
 
 export class WasmOutput {
-    constructor(public funcs: IRFunction[], public builtins: WasmFunction[], public data_count: number, public static_data: Uint8Array){}
+    constructor(public funcs: IRFunction[], public builtins: BuiltinFunction[], public data_count: number, public static_data: Uint8Array){}
 
     encode(): Uint8Array {
         const encoder = new TextEncoder();
@@ -295,8 +245,9 @@ export class WasmOutput {
         const header = encoder.encode("\0asm");
         const binary_version = new Uint8Array(new Uint32Array([1]).buffer);
         let func_map = new Map<string, number>();
-        this.funcs.forEach((f,i)=>func_map.set(f.name.name, i));
-        const funcs = [...this.builtins, ...this.funcs.map(f=>make_wasm_function(f, func_map))];
+        this.builtins.forEach((f,i)=>func_map.set(f.name.name, i));
+        this.funcs.forEach((f,i)=>func_map.set(f.name.name, i + this.builtins.length));
+        const funcs = [...this.builtins.map(b=>b.wasm), ...this.funcs.map(f=>make_wasm_function(f, func_map))];
         const type_data = new TypeSection(funcs).encode();
         const function_data = new FunctionSection(funcs).encode();
         const export_data = new ExportSection([...funcs.map((f,i)=>new FunctionExport(f, i)), new MemoryExport("memory")]).encode();

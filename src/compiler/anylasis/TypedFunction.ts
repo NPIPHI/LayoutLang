@@ -1,7 +1,9 @@
+import { BuiltinFunction } from "../codegen/decompile";
 import * as Untyped from "../parse/expression";
-import { Identifier } from "../parse/expression";
+import { Identifier, Type, Argument } from "../type";
 import { Statement as UntypedStatement, LetStatment as UntypedLetStatement, ReturnStatement as UntypedReturnStatement} from "../parse/statment"
-import { Argument, ParserFunction, Type } from "../parse/statment";
+import { ParserFunction } from "../parse/statment";
+import { Operation, make_binary_op } from "./Operation";
 
 export class ValueIdentifier {
     constructor(public type: Type, public name: Identifier){};
@@ -18,22 +20,7 @@ export class FunctionIdentifier {
 export class IntConstant {
     constructor(public type: Type, public val: number){};
 }
-
-export class I32Operation {
-    public type = "i32";
-    constructor(public op: Untyped.Operation){};
-}
-
-export type Operation = I32Operation;
-function make_binary_op(left: Type, op: Untyped.Operation, right: Type){
-    if(left == "i32" && right == "i32"){
-        return new I32Operation(op);
-    } else {
-        throw `no operation ${op} exists on types "${left}" and "${right}"`;
-    }
-}
     
-
 export class BinaryOp {
     constructor(public type: Type, public left: Expression, public op: Operation, public right: Expression){}
 }
@@ -42,7 +29,11 @@ export class FunctionCall {
     constructor(public type: Type, public name: Identifier, public args: Expression[]){};
 }
 
-export type Expression = IntConstant | BinaryOp | FunctionCall | Value;
+export class IfExpression {
+    constructor(public type: Type, public pred: Expression, public then_body: Statement[], public else_body: Statement[]){};
+}
+
+export type Expression = IntConstant | BinaryOp | FunctionCall | Value | IfExpression;
 
 export class LetStatement{
     constructor(public name: ValueIdentifier, public expr: Expression){};
@@ -58,6 +49,18 @@ export class Function{
     constructor(public name: Identifier, public args: Argument[], public type: Type, public body: Statement[]){}
 }
 
+function get_return_type(statements: Statement[]){
+    if(statements.length == 0) throw "no return statment"
+    for(const statement of statements){
+        const is_end = (statement == statements[statements.length -1]);
+        const is_return = (statement instanceof ReturnStatement);
+        if(is_end != is_return){
+            throw "return statment not at end of function";
+        }
+    }
+
+    return statements[statements.length - 1].expr.type;
+}
 
 class IdentifierLookupTable{
     symbols: Map<string, ValueIdentifier | FunctionIdentifier>;
@@ -119,10 +122,24 @@ function make_typed_expression(expr: Untyped.Expression, lookup: IdentifierLooku
         const op = make_binary_op(left.type, expr.op, right.type);
 
         return new BinaryOp(op.type, left, op, right);
+
+    } else if(expr instanceof Untyped.IfExpression){
+        const pred = make_typed_expression(expr.pred, lookup);
+        const then_body = make_typed_body(expr.then_body, lookup);
+        const else_body = make_typed_body(expr.else_body, lookup);
+        const then_return = get_return_type(then_body);
+        const else_return = get_return_type(else_body);
+
+        if(pred.type != "bool") throw `predicate to if statment has type ${pred.type} expected type "bool"`
+        if(then_return != else_return) throw `if expression type mismatch: ${then_return} != ${else_return}`
+
+        return new IfExpression(then_return, pred, then_body, else_body);
     } else {
         throw "unexpected expression type";
     }
 }
+
+
 
 function make_typed_statement(statement: UntypedStatement, lookup: IdentifierLookupTable){
     if(statement instanceof UntypedLetStatement){
@@ -137,6 +154,11 @@ function make_typed_statement(statement: UntypedStatement, lookup: IdentifierLoo
     }
 }
 
+function make_typed_body(statements: UntypedStatement[], lookup: IdentifierLookupTable): Statement[]{
+    let scoped_lookup = new IdentifierLookupTable(lookup);
+    return statements.map(s=>make_typed_statement(s, scoped_lookup));
+}
+
 function make_typed_function(func: ParserFunction, func_lookup: IdentifierLookupTable): Function{
     const name = func.name;
     const args = func.args;
@@ -145,16 +167,20 @@ function make_typed_function(func: ParserFunction, func_lookup: IdentifierLookup
     for(const arg of func.args){
         lookup.add_symbol(new ValueIdentifier(arg.type, arg.name));
     }
-    const body = func.body.map(f=>make_typed_statement(f, lookup));
+    const body = make_typed_body(func.body, lookup);
     return new Function(name, args, type, body);
 }
+
 export class TypedProgram {
     public readonly funcs: Function[];
     public readonly func_map: Map<string, Function>;
 
 
-    constructor(funcs: ParserFunction[]){
+    constructor(funcs: ParserFunction[], builtins: BuiltinFunction[]){
         let lookup = new IdentifierLookupTable(null);
+        for(const func of builtins){
+            lookup.add_symbol(new FunctionIdentifier(func.type, func.name, func.args));
+        }
         for(const func of funcs){
             lookup.add_symbol(new FunctionIdentifier(func.return_type, func.name, func.args.map(arg=>arg.type)));
         }

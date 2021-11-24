@@ -22,33 +22,34 @@ letStatement
 type    
         : IDENTIFIER;
 
-args    
-        : argList+=arg (',' argList+=arg)*
+args    :
+        | argList+=arg (',' argList+=arg)*
         ;
 
 arg 
         : name=IDENTIFIER':'type_decl=type;
 
-expr    : funcCall
+expr    : ifExpr
+        | funcCall
         | parenExpr
         | expr binaryop expr
-        | binaryExpr
         | identifier
         | integer
         ;
 
-binaryExpr : ;
-funcCall: name=IDENTIFIER '(' argList+=expr (',' argList+=expr)* ')';
+exprList : 
+        | argList+=expr (',' argList+=expr)*
+        ;
+
+ifExpr: 'if' '(' pred=expr ')' '{' then_body=funcBody '}' 'else' '{' else_body=funcBody '}';
+funcCall: name=IDENTIFIER '(' argList=exprList ')';
 parenExpr: '(' expression=expr ')';
 binaryop: op=BINARYOP;
 identifier : name=IDENTIFIER;
 integer: value=INT;
 
 BINARYOP : 
-        '+'
-        |'-'
-        |'*'
-        |'/';
+         '+'|'-'|'*'|'/'|'%'|'>'|'<'|'>='|'<='|'||'|'&&'|'=='|'!='|'<<'|'>>';
 
 INT     : [\-]? [0-9]+;
 IDENTIFIER : [a-zA-Z] [a-zA-Z0-9_]*;

@@ -1,7 +1,8 @@
-import { Identifier } from "../parse/expression";
-import { Function, Expression, BinaryOp, FunctionCall, IntConstant, ReturnStatement, LetStatement, Value } from "./TypedFunction";
-import { Argument, LetStatment, Type } from "../parse/statment";
+import { Identifier } from "../type";
+import { Function, Expression, BinaryOp, FunctionCall, IntConstant, Value, IfExpression, Statement, LetStatement} from "./TypedFunction";
+import { Type, Argument } from "../type";
 import * as SSA from "./SSA"
+import { make_binary_op } from "./Operation";
 
 // export class WasmFunction{
 //     constructor(public name: Identifier, public args: Argument[], public type: Type, public code: Uint8Array){}
@@ -19,14 +20,7 @@ class FunctionSymbol{
 }
 
 class ValueSymbol{
-    constructor(name: Identifier, ssa_index: number){
-        this.name = name;
-        this.ssa_index = ssa_index;
-        this.value_type = "i32";
-    }
-    name: Identifier;
-    value_type: Type;
-    ssa_index: number;
+    constructor(public name: Identifier, public ssa_index: number, public type: Type){}
 }
 
 class ArgSymbol{  
@@ -75,63 +69,64 @@ export function make_IRFunctions(parser_functions: Function[]): IRFunction[]{
     return parser_functions.map(func=>make_IRFunction(func, lookup));
 }
 
-function validate_function(func: Function){
-    if(func.body.length == 0) throw "no return statment in function: " + func.name.name;
-    for(const statement of func.body){
-        const is_end = (statement == func.body[func.body.length -1]);
-        const is_return = (statement instanceof ReturnStatement);
-        if(is_end != is_return){
-            throw "return statment not at end of function: " + func.name.name;
+function make_ir(expressions: SSA.Expression[], expr: Expression, sym_lookup: SymbolLookupTable){
+    if(expr instanceof BinaryOp){
+        const left = make_ir(expressions, expr.left, sym_lookup);
+        const op = expr.op;
+        const right = make_ir(expressions, expr.right, sym_lookup);
+        expressions.push(new SSA.Operation(expressions.length, [left, right], expr.op));
+    } else if(expr instanceof IntConstant){
+        expressions.push(new SSA.Constant(expressions.length, expr.val, "i32"));
+    } else if(expr instanceof Value){
+        const sym = sym_lookup.get_symbol(expr.name);
+        if(!sym) {
+            throw "can't find symbol: " + expr.name;
         }
+        
+        if(sym instanceof ArgSymbol){
+            expressions.push(new SSA.ArgIdentifier(expressions.length, sym.arg_idx));
+        } else if(sym instanceof ValueSymbol){
+            expressions.push(new SSA.LocalIdentifier(expressions.length, sym.ssa_index));
+        } else {
+            throw "unexpected symbol type, expected value";
+        }
+    } else if(expr instanceof FunctionCall){
+        const args = expr.args.map(a=>make_ir(expressions, a, sym_lookup));
+        expressions.push(new SSA.FunctionIdentifier(expressions.length, expr.name, args));
+    } else if(expr instanceof IfExpression){
+        const pred_idx = make_ir(expressions, expr.pred, sym_lookup);
+        const then_idx = make_IrBody(expressions, expr.then_body, sym_lookup);
+        const else_idx = make_IrBody(expressions, expr.else_body, sym_lookup);
+        expressions.push(new SSA.IfBranch(expressions.length, pred_idx, then_idx, else_idx));
+    } else {
+        throw "unexpected expression type";
     }
+    return expressions.length - 1;
+}
+
+function make_IrBody(expressions: SSA.Expression[], statements: Statement[], sym_lookup: SymbolLookupTable): number{
+    const scoped_lookup = new SymbolLookupTable(sym_lookup);
+    let idx = 0;
+    statements.forEach(s=>{
+        idx = make_ir(expressions, s.expr, scoped_lookup);
+        if(s instanceof LetStatement){
+            scoped_lookup.add_symbol(new ValueSymbol(s.name.name, idx, s.expr.type));
+        }
+    });
+
+    return idx;
 }
 
 function make_IRFunction(func: Function, sym_lookup: SymbolLookupTable): IRFunction{
-    validate_function(func);
     const lookup = new SymbolLookupTable(sym_lookup);
     func.args.forEach((arg,idx)=>{
         lookup.add_symbol(new ArgSymbol(arg, idx));
     });
     let expressions: SSA.Expression[] = [];
-    const add_expression = (f: Expression): number=>{
-        if(f instanceof BinaryOp){
-            const left = add_expression(f.left);
-            const op = f.op;
-            const right = add_expression(f.right);
-            expressions.push(new SSA.BinaryOp(expressions.length, left, right, op));
-        } else if(f instanceof IntConstant){
-            expressions.push(new SSA.Constant(expressions.length, f.val));
-        } else if(f instanceof Value){
-            const sym = lookup.get_symbol(f.name);
-            if(!sym) {
-                throw "can't find symbol: " + f.name;
-            }
-            
-            if(sym instanceof ArgSymbol){
-                expressions.push(new SSA.ArgIdentifier(expressions.length, sym.arg_idx));
-            } else if(sym instanceof ValueSymbol){
-                expressions.push(new SSA.LocalIdentifier(expressions.length, sym.ssa_index));
-            } else {
-                throw "unexpected symbol type, expected value";
-            }
-        } else if(f instanceof FunctionCall){
-            expressions.push(new SSA.FunctionIdentifier(expressions.length, f.name, f.args.map(add_expression)));
-        } else {
-            throw "unexpected expression type";
-        }
-        return expressions.length - 1;
-    }
 
-    for(const statement of func.body){
-        const idx = add_expression(statement.expr);
-        if(statement instanceof LetStatment){
-            lookup.add_symbol(new ValueSymbol(statement.name, idx));
-        } else {
-            
-        }
-    }
+    make_IrBody(expressions, func.body, lookup);
 
-    return new IRFunction(func.name, func.args.map(a=>a.type), "i32", expressions);
+    return new IRFunction(func.name, func.args.map(a=>a.type), func.type, expressions);
 }
 
 

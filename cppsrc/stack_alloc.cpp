@@ -1,12 +1,13 @@
 constexpr int BLOCK_SIZE = 1 << 16;
-
+constexpr int BASE_STACK_PTR = 128;
 #define get_size() (__builtin_wasm_memory_size(0))
 
 
 #define grow_memory(blocks) (__builtin_wasm_memory_grow(0, blocks))
 
-static int stack_ptr = 128;
 
+
+static int stack_ptr = BASE_STACK_PTR;
 extern "C" {
     int stack_alloc(int size){
         auto aligned_size = (size - 1) / 8 * 8 + 8;
@@ -23,6 +24,22 @@ extern "C" {
         return ptr;
     }   
     void reset_alloc(){
-        stack_ptr = 0;
+        stack_ptr = BASE_STACK_PTR;
+    }
+    int square(int a){
+        return a*a;
     }
 }
+
+// extern int f();
+// extern int f2();
+// extern void f3(int);
+// void loop_n(int n){
+//     int a;
+//     if(n){
+//         a = f();
+//     } else {
+//         a = f2();
+//     }
+//     f3(a);
+// }

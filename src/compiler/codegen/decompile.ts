@@ -1,10 +1,19 @@
-import { Argument, Type } from "../parse/statment";
 import { decodeInt32, decodeUInt32 } from "./leb/leb";
-import { T, WasmFunction } from "./codegen"
-import { Identifier } from "../parse/expression";
+import { WasmFunction } from "./codegen"
+import { T } from "./primitiveTypes";
+import { Identifier, Type } from "../type";
 
+export class BuiltinFunction {
+    constructor(public name: Identifier, public type: Type, public args: Type[], public wasm: WasmFunction){}
+}
 
-export async function decompile(path: string): Promise<{functions: WasmFunction[], data_count: number, static_data: Uint8Array}> {
+const builtins = [
+    {name: "stack_alloc", args: ["i32"], type: "i32"},
+    {name: "reset_alloc", args: [], type: "void"},
+    {name: "square", args: ["i32"], type: "i32"},
+]
+
+export async function decompile(path: string): Promise<{functions: BuiltinFunction[], data_count: number, static_data: Uint8Array}> {
     const bin = await (await fetch(path)).arrayBuffer();
     const arr = new Uint8Array(bin);
     const encoder = new TextEncoder();
@@ -21,10 +30,17 @@ export async function decompile(path: string): Promise<{functions: WasmFunction[
     const {value: data, nextIndex: _} = decompile_data(arr, data_idx);
     
     let wasm_functions = [];
+    if(func_ids.length != functions.length){
+        throw "mismatched function ids";
+    }
+    if(func_ids.length != builtins.length){
+        throw "wrong number of function names";
+    }
     for(let i = 0; i < func_ids.length; i++){
-        let args = types[func_ids[i]].args;
-        let type = types[func_ids[i]].type;
-        wasm_functions.push(new WasmFunction("_"+i, args, type, functions[i].code, functions[i].locals));
+        const args = types[func_ids[i]].args;
+        const type = types[func_ids[i]].type;
+        const wasm_func = new WasmFunction(builtins[i].name, args, type, functions[i].code, functions[i].locals);
+        wasm_functions.push(new BuiltinFunction(new Identifier(builtins[i].name), builtins[i].type as Type, builtins[i].args as Type[], wasm_func));
     }
 
     return {functions: wasm_functions, data_count: datacount, static_data: data};
