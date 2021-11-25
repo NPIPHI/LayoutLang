@@ -31,6 +31,12 @@ export const i32 = {
     shr_u: new Uint8Array([0x76]),
     rotl: new Uint8Array([0x77]),
     rotr: new Uint8Array([0x78]),
+    wrap_i64: new Uint8Array([0xA7]),
+    trunc_f32_s: new Uint8Array([0xA8]),
+    trunc_f32_u: new Uint8Array([0xA9]),
+    trunc_f64_s: new Uint8Array([0xAA]),
+    trunc_f64_u: new Uint8Array([0xAB]),
+    reinterpret_f32: new Uint8Array([0xBC]),
 }
 
 export const i64 = {
@@ -66,6 +72,13 @@ export const i64 = {
     shr_u: new Uint8Array([0x88]),
     rotl: new Uint8Array([0x89]),
     rotr: new Uint8Array([0x8A]),
+    extend_i32_s: new Uint8Array([0xAC]),
+    extend_i32_u: new Uint8Array([0xAD]),
+    trunc_f32_s: new Uint8Array([0xAE]),
+    trunc_f32_u: new Uint8Array([0xAF]),
+    trunc_f64_s: new Uint8Array([0xB0]),
+    trunc_f64_u: new Uint8Array([0xB1]),
+    reinterpret_f64: new Uint8Array([0xBD]),
 }
 
 export const f32 = {
@@ -92,8 +105,12 @@ export const f32 = {
     min: new Uint8Array([0x96]),
     max: new Uint8Array([0x97]),
     copysign: new Uint8Array([0x98]),
-
-
+    convert_i32_s: new Uint8Array([0xB2]),
+    convert_i32_u: new Uint8Array([0xB3]),
+    convert_i64_s: new Uint8Array([0xB4]),
+    convert_i64_u: new Uint8Array([0xB5]),
+    demote_f64: new Uint8Array([0xB6]),
+    reinterpret_i32: new Uint8Array([0xBE]),
 }
 
 export const f64 = {
@@ -120,6 +137,12 @@ export const f64 = {
     min: new Uint8Array([0xA4]),
     max: new Uint8Array([0xA5]),
     copysign: new Uint8Array([0xA6]),
+    convert_i32_s: new Uint8Array([0xB7]),
+    convert_i32_u: new Uint8Array([0xB8]),
+    convert_i64_s: new Uint8Array([0xB9]),
+    convert_i64_u: new Uint8Array([0xBA]),
+    promote_f32: new Uint8Array([0xBB]),
+    reinterpret_i64: new Uint8Array([0xBF]),
 }
 
 export const memory = {

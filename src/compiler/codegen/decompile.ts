@@ -10,6 +10,7 @@ export class BuiltinFunction {
 const builtins = [
     {name: "stack_alloc", args: ["i32"], type: "i32"},
     {name: "reset_alloc", args: [], type: "void"},
+    {name: "Point", args: ["f64", "f64"], type: "Point"}
 ]
 
 export async function decompile(path: string): Promise<{functions: BuiltinFunction[], data_count: number, static_data: Uint8Array}> {

@@ -33,6 +33,7 @@ expr
         : ifExpr
         | funcCall
         | parenExpr
+        | expr PIPE lambda
         | MINUS expr
         | expr BINARYOP0 expr
         | expr (BINARYOP1 | MINUS) expr
@@ -41,8 +42,8 @@ expr
         | expr BINARYOP4 expr
         | expr BINARYOP5 expr
         | expr BINARYOP6 expr
-        | integer
         | identifier
+        | integer
         | floatVal
         ;
 
@@ -51,6 +52,13 @@ exprList :
         | argList+=expr (COMMA argList+=expr)*
         ;
 
+        
+identifierList : 
+        | idenList+=IDENTIFIER (COMMA idenList+=IDENTIFIER)*
+        ;
+
+lambda : LEFTPAREN argsList=identifierList RIGHTPAREN FATARROW LEFTCURLY func_body=funcBody RIGHTCURLY;
+
 ifExpr: IF LEFTPAREN pred=expr RIGHTPAREN LEFTCURLY then_body=funcBody RIGHTCURLY ELSE LEFTCURLY else_body=funcBody RIGHTCURLY;
 funcCall: name=IDENTIFIER LEFTPAREN argList=exprList RIGHTPAREN;
 parenExpr: LEFTPAREN expression=expr RIGHTPAREN;
@@ -58,16 +66,17 @@ identifier : name=IDENTIFIER;
 integer: value=INT;
 floatVal: value=FLOAT;
 
-
 MINUS : '-';
+PIPE: '|';
 BINARYOP0 : '*'|'/'|'%';
 BINARYOP1 : '+';
 BINARYOP2 : '<<'|'>>';
 BINARYOP3 : '=='|'!=';
 BINARYOP4 : '<='|'>='|'<'|'>';
 BINARYOP5 : '&&';
-BINARYOP6 : '|';
+BINARYOP6 : '||';
 ARROW : '->';
+FATARROW : '=>';
 FUNCTION : 'fn';
 SEMICOLON : ';';
 EQ : '=';
@@ -82,7 +91,7 @@ RIGHTPAREN : ')';
 LEFTCURLY : '{';
 RIGHTCURLY : '}';
 INT     : [0-9]+;
-FLOAT : [0-9]*'.'[0-9]+;
+FLOAT : [0-9]+'.'[0-9]+;
 IDENTIFIER : [a-zA-Z] [a-zA-Z0-9_]*;
 
 WS      : [ \t\r\n]+ -> skip;

@@ -39,6 +39,9 @@ export function get_primitive_type(t: Type): PrimitiveType {
         "f32": T.f32,
         "f64": T.f64,
         "bool": T.i32,
+        "Point": T.i32,
+        "Shape": T.i32,
+        "IntRange": T.i32,
     }[t];
 
     if(!type) throw `no primitive type for "${t}"`

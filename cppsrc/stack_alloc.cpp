@@ -9,7 +9,10 @@ constexpr int BASE_STACK_PTR = 128;
 
 static int stack_ptr = BASE_STACK_PTR;
 extern "C" {
-    int stack_alloc(int size){
+    struct Point {
+        double x,y;
+    };
+    void* stack_alloc(int size){
         auto aligned_size = (size - 1) / 8 * 8 + 8;
         auto needed_blocks = (stack_ptr + aligned_size) / BLOCK_SIZE + 1;
         auto has_blocks = get_size();
@@ -21,10 +24,15 @@ extern "C" {
         }
         auto ptr = stack_ptr;
         stack_ptr += aligned_size;
-        return ptr;
+        return (void*)ptr;
     }   
     void reset_alloc(){
         stack_ptr = BASE_STACK_PTR;
     }
-    
+    Point* point(double x, double y){
+        auto pt = (Point*)stack_alloc(sizeof(Point));
+        pt->x = x;
+        pt->y = y;
+        return pt;
+    }
 }

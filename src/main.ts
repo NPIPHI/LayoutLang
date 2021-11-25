@@ -1,40 +1,20 @@
 import { decompile } from "./compiler/codegen/decompile";
+import { inline_functions } from "./compiler/codegen/inlineFunctions";
 import { Compiler } from "./compiler/compiler";
 
 const starting_code = 
 `
-fn trap() -> i64 {
-    return 0 / 0;
-}
-
-fn main() -> i64 {
-    return fib(10);
-}
-
-fn cube(a: i64) -> i64 {
-    return a * a * a;
-}
-
-fn fib(a: i64) -> i64 {
-    return if(a <= 2){
-        return 1;
-    } else {
-        return fib(a - 1) + fib(a - 2);
-    };
+fn main() -> Point {
+    let a = i64_to_f64(i32_to_i64(f32_to_i32(f64_to_f32(3.532))));
+    return Point(a,3.3);
 }
 
 `
 
-const input = `
-fn main() -> i64 {
-    return 1 - 1;
-}
-`
-
-if(false){
+if(true){
     (async ()=>{
         const builtins = await decompile("../cppsrc/stack_alloc.wasm");
-        const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input);
+        const binary = new Compiler(builtins.functions, inline_functions, builtins.data_count, builtins.static_data).compile(starting_code);
         const {instance} = await WebAssembly.instantiate(binary);
         const result = (instance.exports as any).main();
         console.log(result);
@@ -76,7 +56,7 @@ async function update(){
     last_text = input;
     try {
         const start = performance.now();
-        const binary = new Compiler(builtins.functions, builtins.data_count, builtins.static_data).compile(input);
+        const binary = new Compiler(builtins.functions, inline_functions, builtins.data_count, builtins.static_data).compile(input);
         const compile = performance.now();
         const {instance} = await WebAssembly.instantiate(binary);
         const instantiate = performance.now();

@@ -104,6 +104,24 @@ export default class LayoutLangListener extends antlr4.tree.ParseTreeListener {
 	}
 
 
+	// Enter a parse tree produced by LayoutLangParser#identifierList.
+	enterIdentifierList(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#identifierList.
+	exitIdentifierList(ctx) {
+	}
+
+
+	// Enter a parse tree produced by LayoutLangParser#lambda.
+	enterLambda(ctx) {
+	}
+
+	// Exit a parse tree produced by LayoutLangParser#lambda.
+	exitLambda(ctx) {
+	}
+
+
 	// Enter a parse tree produced by LayoutLangParser#ifExpr.
 	enterIfExpr(ctx) {
 	}

@@ -5,8 +5,17 @@ import { BuiltinFunction } from "./decompile";
 import { Type } from "../type";
 import * as I from "../instructions"
 import { T, PrimitiveType, get_primitive_type } from "./primitiveTypes";
+import { InlineFunction } from "./inlineFunctions";
 
-export type ExportKind = Uint8Array;
+type FunctionCall = WasmFunctionCall | InlineFunction;
+
+class WasmFunctionCall {
+    constructor(public func_idx: number){};
+
+    encode(): Uint8Array[] {
+        return [I.call, encodeInt32(this.func_idx)];
+    }
+}
 
 function make_lenth_encoding(buffers: Uint8Array[]): Uint8Array {
     const length = buffers.reduce((a,b)=>a + b.byteLength, 0);
@@ -39,7 +48,7 @@ function make_constant(constant: SSA.Constant){
     }
 }
 
-function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<string, number>, depth: number): Uint8Array[]{
+function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<string, FunctionCall>, depth: number): Uint8Array[]{
     return [
         ...gen_code(code, expr.pred_idx, function_map, depth), 
         T.branch_if_else, expr.type,         
@@ -50,7 +59,7 @@ function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<st
     ];
 }
 
-function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, number>, depth: number) : Uint8Array[]{
+function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, FunctionCall>, depth: number) : Uint8Array[]{
     const expr = code[idx];
     if(expr instanceof SSA.Constant){
         return make_constant(expr);
@@ -59,7 +68,7 @@ function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string,
     } else if(expr instanceof SSA.LocalIdentifier){
         return gen_code(code, expr.src_idx, function_map, depth);
     } else if(expr instanceof SSA.FunctionIdentifier){
-        return [...expr.args.flatMap(n=>gen_code(code, n, function_map, depth)), I.call, encodeInt32(function_map.get(expr.func.name))];
+        return [...expr.args.flatMap(n=>gen_code(code, n, function_map, depth)), ...function_map.get(expr.func.name).encode()];
     } else if(expr instanceof SSA.Operation){
         return [...expr.sources.flatMap(s=>gen_code(code, s, function_map, depth)), expr.op.code];
     } else if(expr instanceof SSA.IfBranch){
@@ -74,7 +83,7 @@ function get_primitve_type_or_void(t: Type): PrimitiveType | 0 {
     return get_primitive_type(t);
 }
 
-function make_wasm_function(func: IRFunction, function_map: Map<string, number>): WasmFunction {
+function make_wasm_function(func: IRFunction, function_map: Map<string, FunctionCall>): WasmFunction {
     let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map, 0);
     code.push(I.end_func);
     return new WasmFunction(func.name.name, func.args.map(get_primitive_type), get_primitve_type_or_void(func.return_type), I.merge(code), []);
@@ -215,16 +224,17 @@ class DataCountSection{
 }
 
 export class WasmOutput {
-    constructor(public funcs: IRFunction[], public builtins: BuiltinFunction[], public data_count: number, public static_data: Uint8Array){}
+    constructor(public funcs: IRFunction[], public builtins: BuiltinFunction[], public inlines: InlineFunction[], public data_count: number, public static_data: Uint8Array){}
 
     encode(): Uint8Array {
         const encoder = new TextEncoder();
 
         const header = encoder.encode("\0asm");
         const binary_version = new Uint8Array(new Uint32Array([1]).buffer);
-        let func_map = new Map<string, number>();
-        this.builtins.forEach((f,i)=>func_map.set(f.name.name, i));
-        this.funcs.forEach((f,i)=>func_map.set(f.name.name, i + this.builtins.length));
+        let func_map = new Map<string, FunctionCall>();
+        this.inlines.forEach(i=>func_map.set(i.name.name, i));
+        this.builtins.forEach((f,i)=>func_map.set(f.name.name, new WasmFunctionCall(i)));
+        this.funcs.forEach((f,i)=>func_map.set(f.name.name, new WasmFunctionCall(i + this.builtins.length)));
         const funcs = [...this.builtins.map(b=>b.wasm), ...this.funcs.map(f=>make_wasm_function(f, func_map))];
         const type_data = new TypeSection(funcs).encode();
         const function_data = new FunctionSection(funcs).encode();

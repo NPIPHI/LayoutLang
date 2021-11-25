@@ -4,6 +4,7 @@ import { Identifier, Type, Argument } from "../type";
 import { Statement as UntypedStatement, LetStatment as UntypedLetStatement, ReturnStatement as UntypedReturnStatement} from "../parse/statment"
 import { ParserFunction } from "../parse/statment";
 import { Operation, make_binary_op, make_unary_op } from "./Operation";
+import { InlineFunction } from "../codegen/inlineFunctions";
 
 export class ValueIdentifier {
     constructor(public type: Type, public name: Identifier){};
@@ -37,7 +38,15 @@ export class IfExpression {
     constructor(public type: Type, public pred: Expression, public then_body: Statement[], public else_body: Statement[]){};
 }
 
-export type Expression = Constant | BinaryOp | UnaryOp | FunctionCall | Value | IfExpression;
+export class Lambda {
+    constructor(public type: Type, public args: ValueIdentifier[], public body: Statement[]){};
+}
+
+export class LambadExpression {
+    constructor(public type: Type, public generator: Expression, public lambda: Lambda){};
+}
+
+export type Expression = Constant | BinaryOp | UnaryOp | FunctionCall | Value | IfExpression | LambadExpression;
 
 export class LetStatement{
     constructor(public name: ValueIdentifier, public expr: Expression){};
@@ -51,6 +60,34 @@ export type Statement = LetStatement | ReturnStatement;
 
 export class Function{
     constructor(public name: Identifier, public args: Argument[], public type: Type, public body: Statement[]){}
+}
+
+function is_generator(expr: Expression) : boolean {
+    return {
+        "i32" : false,
+        "f32" : false,
+        "i64" : false,
+        "f64" : false,
+        "void": false,
+        "bool" : false,
+        "Point" : false,
+        "Shape" : true,
+        "IntRange" : true,
+    }[expr.type];
+}
+
+function generated_types(expr: Expression) : Type[] {
+    if(!is_generator(expr)) throw "not a generator";
+
+    return {
+        "Shape" : ["Point"],
+        "IntRange" : ["i64"],
+    }[expr.type as string] as Type[];
+}
+
+function collection_type(type: Type) : Type {
+    if(type == "Point") return "Shape";
+    else throw `No collection for type ${type}`;
 }
 
 function get_return_type(statements: Statement[]){
@@ -148,6 +185,11 @@ function make_typed_expression(expr: Untyped.Expression, lookup: IdentifierLooku
         const operation =  make_unary_op(child_expr.type, expr.op);
 
         return new UnaryOp(operation.type, child_expr, operation);
+
+    } else if(expr instanceof Untyped.LambadExpression){
+        const generator = make_typed_expression(expr.expr, lookup);
+        const lambda = make_typed_lambda(generator, expr.lambda, lookup);
+        return new LambadExpression(lambda.type, generator, lambda);
     } else {
         throw "unexpected expression type";
     }
@@ -173,6 +215,27 @@ function make_typed_body(statements: UntypedStatement[], lookup: IdentifierLooku
     return statements.map(s=>make_typed_statement(s, scoped_lookup));
 }
 
+function make_typed_lambda(generator: Expression, lambda: Untyped.Lambda, lookup: IdentifierLookupTable) : Lambda {
+    const arg_types = generated_types(generator);
+
+    if(arg_types.length != lambda.args.length) throw "Error: lambda argument count doesn't match generator type count";
+
+    let args = [];
+    for(let i = 0; i < lambda.args.length; i++){
+        args.push(new ValueIdentifier(arg_types[i], lambda.args[i]));
+    }
+
+    const scoped_lookup = new IdentifierLookupTable(lookup);
+    
+    for(const arg of args){
+        scoped_lookup.add_symbol(new ValueIdentifier(arg.type, arg.name));
+    }
+
+    const body = make_typed_body(lambda.body, scoped_lookup);
+
+    return new Lambda(get_return_type(body), args, body);
+}
+
 function make_typed_function(func: ParserFunction, func_lookup: IdentifierLookupTable): Function{
     const name = func.name;
     const args = func.args;
@@ -192,9 +255,12 @@ export class TypedProgram {
     public readonly func_map: Map<string, Function>;
 
 
-    constructor(funcs: ParserFunction[], builtins: BuiltinFunction[]){
+    constructor(funcs: ParserFunction[], builtins: BuiltinFunction[], inlines: InlineFunction[]){
         let lookup = new IdentifierLookupTable(null);
         for(const func of builtins){
+            lookup.add_symbol(new FunctionIdentifier(func.type, func.name, func.args));
+        }
+        for(const func of inlines){
             lookup.add_symbol(new FunctionIdentifier(func.type, func.name, func.args));
         }
         for(const func of funcs){
