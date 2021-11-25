@@ -33,15 +33,15 @@ export class IfExpression{
     constructor(public pred: Expression, public then_body: Statement[], public else_body: Statement[]){};
 }
 
-export class LambadExpression {
-    constructor(public expr: Expression, public lambda: Lambda){};
+export class MapExpression {
+    constructor(public expr: Expression, public func: Lambda){};
 }
 
 export class Lambda {
     constructor(public args: Identifier[], public body: Statement[]){};
 }
 
-export type Expression = UnaryOp | BinaryOp | Constant | Identifier | FunctionCall | IfExpression | LambadExpression;
+export type Expression = UnaryOp | BinaryOp | Constant | Identifier | FunctionCall | IfExpression | MapExpression;
 
 function parse_arg(ctx: any){
     return new Argument(new Identifier(ctx.name.text), ctx.type_decl.getText());
@@ -92,7 +92,8 @@ export function parse_expression(ctx: ParserContext): Expression {
             if(ctx.children[2] instanceof LayoutLangParser.LambdaContext){
                 const expr = parse_expression(ctx.children[0]);
                 const lambda = parse_lambda(ctx.children[2]);
-                return new LambadExpression(expr, lambda);
+                
+                return new MapExpression(expr, lambda);
             } else {
                 const left = parse_expression(ctx.children[0]);
                 const op = OP.from(ctx.children[1].getText());

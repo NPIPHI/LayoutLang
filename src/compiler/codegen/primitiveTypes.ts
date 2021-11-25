@@ -18,15 +18,13 @@ export namespace T {
     export const i64 = new Uint8Array([0x7e]);
     export const f32 = new Uint8Array([0x7d]);
     export const f64 = new Uint8Array([0x7c]);
+    export const block_void = new Uint8Array([0x40]);
     export const export_func = new Uint8Array([0x00]);
     export const export_table = new Uint8Array([0x01]);
     export const export_mem = new Uint8Array([0x02]);
     export const export_global = new Uint8Array([0x03]);
     export const limit_min = new Uint8Array([0x00]);
     export const limit_min_max = new Uint8Array([0x01]);
-    export const branch_if_else = new Uint8Array([0x04]);
-    export const branch_else = new Uint8Array([0x05]);
-    export const branch_end = new Uint8Array([0x0B]);
 }
 
 export type PrimitiveType = Uint8Array;
@@ -41,7 +39,7 @@ export function get_primitive_type(t: Type): PrimitiveType {
         "bool": T.i32,
         "Point": T.i32,
         "Shape": T.i32,
-        "IntRange": T.i32,
+        "IntRange": T.i64,
     }[t];
 
     if(!type) throw `no primitive type for "${t}"`

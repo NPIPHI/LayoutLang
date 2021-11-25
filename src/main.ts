@@ -4,9 +4,15 @@ import { Compiler } from "./compiler/compiler";
 
 const starting_code = 
 `
-fn main() -> Point {
-    let a = i64_to_f64(i32_to_i64(f32_to_i32(f64_to_f32(3.532))));
-    return Point(a,3.3);
+fn main() -> Shape {
+    let a = 5.0;
+    return IntRange(10) | (i) => {
+        return Point(i64_to_f64(i), a);
+    };
+}
+
+fn trap() -> i64 {
+    return 0 / 0;
 }
 
 `

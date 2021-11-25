@@ -1,5 +1,5 @@
 import { Identifier } from "../type";
-import { Function, Expression, BinaryOp, UnaryOp,FunctionCall, Constant, Value, IfExpression, Statement, LetStatement} from "./TypedFunction";
+import { Function, Expression, BinaryOp, UnaryOp, FunctionCall, Constant, Value, IfExpression, Statement, LetStatement, MapExpression} from "./TypedFunction";
 import { Type, Argument } from "../type";
 import * as SSA from "./SSA"
 import { get_primitive_type } from "../codegen/primitiveTypes";
@@ -103,6 +103,10 @@ function make_ir(expressions: SSA.Expression[], expr: Expression, sym_lookup: Sy
         const then_idx = make_IrBody(expressions, expr.then_body, sym_lookup);
         const else_idx = make_IrBody(expressions, expr.else_body, sym_lookup);
         expressions.push(new SSA.IfBranch(expressions.length, pred_idx, then_idx, else_idx, get_primitive_type(expr.type)));
+    } else if(expr instanceof MapExpression){
+        const generator = make_ir(expressions, expr.generator, sym_lookup);
+        const args = expr.lambda.capture_args.map(a=>make_ir(expressions, a, sym_lookup));
+        expressions.push(new SSA.Map(expressions.length, generator, expr.lambda.name, args, get_primitive_type(expr.type)));
     } else {
         throw "unexpected expression type";
     }

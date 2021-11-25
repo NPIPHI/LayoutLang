@@ -1,8 +1,9 @@
 import { PrimitiveType } from "../codegen/primitiveTypes";
-import { Identifier, Type } from "../type";
+import { MapExpression } from "../parse/expression";
+import { Identifier } from "../type";
 import { Operation as WasmOperation} from "./Operation";
 
-export type Expression = Constant | Operation | LocalIdentifier | ArgIdentifier | FunctionIdentifier | IfBranch;
+export type Expression = Constant | Operation | LocalIdentifier | ArgIdentifier | FunctionIdentifier | IfBranch | MapExpression;
 
 export class Constant {
     constructor(public idx: number, public val: number, public type: PrimitiveType){}
@@ -26,4 +27,8 @@ export class Operation {
 
 export class IfBranch {
     constructor(public idx: number, public pred_idx: number, public then_idx: number, public else_idx: number, public type: PrimitiveType){}
+}
+
+export class Map {
+    constructor(public idx: number, public generator_idx: number, public func: Identifier, public args: number[], public type: PrimitiveType){}
 }

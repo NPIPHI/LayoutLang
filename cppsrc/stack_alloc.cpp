@@ -35,4 +35,11 @@ extern "C" {
         pt->y = y;
         return pt;
     }
+
+    Point* __add_point(Point* a, Point* b){
+        auto pt = (Point*)stack_alloc(sizeof(Point));
+        pt->x = a->x + b->x;
+        pt->y = a->y + b->y;
+        return pt;
+    }
 }

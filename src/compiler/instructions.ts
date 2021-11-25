@@ -168,6 +168,12 @@ export const select = new Uint8Array([0x1B]);
 export const _return = new Uint8Array([0x0f]);
 export const end_func = new Uint8Array([0x0b]);
 
+export const loop = new Uint8Array([0x03]);
+export const br = new Uint8Array([0xC]);
+export const br_if = new Uint8Array([0xD]);
+export const branch_if_else = new Uint8Array([0x04]);
+export const branch_else = new Uint8Array([0x05]);
+export const branch_end = new Uint8Array([0x0B]);
 
 export function merge(buffers: Uint8Array[]): Uint8Array{
     const length = buffers.reduce((a,b)=>a + b.byteLength, 0);

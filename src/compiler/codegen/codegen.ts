@@ -48,31 +48,74 @@ function make_constant(constant: SSA.Constant){
     }
 }
 
-function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<string, FunctionCall>, depth: number): Uint8Array[]{
+function gen_if(code: SSA.Expression[], expr: SSA.IfBranch, function_map: Map<string, FunctionCall>): Uint8Array[]{
     return [
-        ...gen_code(code, expr.pred_idx, function_map, depth), 
-        T.branch_if_else, expr.type,         
-            ...gen_code(code, expr.then_idx, function_map, depth + 1), 
-        T.branch_else,
-            ...gen_code(code, expr.else_idx, function_map, depth + 1),
-        T.branch_end,
+        ...gen_code(code, expr.pred_idx, function_map), 
+        I.branch_if_else, expr.type,         
+            ...gen_code(code, expr.then_idx, function_map), 
+        I.branch_else,
+            ...gen_code(code, expr.else_idx, function_map),
+        I.branch_end,
     ];
 }
 
-function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, FunctionCall>, depth: number) : Uint8Array[]{
+function gen_map(code: SSA.Expression[], expr: SSA.Map, function_map: Map<string, FunctionCall>): Uint8Array[] {
+    return [
+        I.i32.const, encodeInt32(4),
+        ...gen_code(code, expr.generator_idx, function_map),
+        I.i64.store, encodeInt32(2), encodeInt32(0),
+        I.loop, T.block_void,
+            // I.i32.const, encodeInt32(4),
+            // I.i64.load, encodeInt32(2), encodeInt32(0),
+
+            // I.i64.const, encodeInt32(0),
+            // I.i64.eq,
+            // I.br_if, encodeInt32(0),
+
+            // I.i32.const, encodeInt32(4),
+            I.i32.const, encodeInt32(4),
+            I.i32.const, encodeInt32(4),
+            I.i64.load, encodeInt32(2), encodeInt32(0),
+            I.i64.const, encodeInt32(-1),
+            I.i64.add,
+            I.i64.store, encodeInt32(2), encodeInt32(0),
+
+
+
+            ...expr.args.flatMap(arg=>gen_code(code, arg, function_map)),
+            I.i32.const, encodeInt32(4),
+            I.i64.load, encodeInt32(2), encodeInt32(0),
+            ...function_map.get(expr.func.name).encode(),
+            I.drop,
+
+
+            
+            I.i32.const, encodeInt32(4),
+            I.i64.load, encodeInt32(2), encodeInt32(0),
+            I.i64.const, encodeInt32(0),
+            I.i64.ne,
+            I.br_if, encodeInt32(0),
+        I.branch_end,
+        I.i32.const, encodeInt32(128),
+    ]
+}
+
+function gen_code(code: SSA.Expression[], idx: number, function_map: Map<string, FunctionCall>) : Uint8Array[]{
     const expr = code[idx];
     if(expr instanceof SSA.Constant){
         return make_constant(expr);
     } else if(expr instanceof SSA.ArgIdentifier){
         return [I.local.get, encodeInt32(expr.src_idx)];
     } else if(expr instanceof SSA.LocalIdentifier){
-        return gen_code(code, expr.src_idx, function_map, depth);
+        return gen_code(code, expr.src_idx, function_map);
     } else if(expr instanceof SSA.FunctionIdentifier){
-        return [...expr.args.flatMap(n=>gen_code(code, n, function_map, depth)), ...function_map.get(expr.func.name).encode()];
+        return [...expr.args.flatMap(n=>gen_code(code, n, function_map)), ...function_map.get(expr.func.name).encode()];
     } else if(expr instanceof SSA.Operation){
-        return [...expr.sources.flatMap(s=>gen_code(code, s, function_map, depth)), expr.op.code];
+        return [...expr.sources.flatMap(s=>gen_code(code, s, function_map)), expr.op.code];
     } else if(expr instanceof SSA.IfBranch){
-        return gen_if(code, expr, function_map, depth);
+        return gen_if(code, expr, function_map);
+    } else if(expr instanceof SSA.Map){
+        return gen_map(code, expr, function_map);
     } else {
         throw "unexpected ssa expression";
     }
@@ -84,7 +127,7 @@ function get_primitve_type_or_void(t: Type): PrimitiveType | 0 {
 }
 
 function make_wasm_function(func: IRFunction, function_map: Map<string, FunctionCall>): WasmFunction {
-    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map, 0);
+    let code: Uint8Array[] = gen_code(func.SSA, func.SSA.length - 1, function_map);
     code.push(I.end_func);
     return new WasmFunction(func.name.name, func.args.map(get_primitive_type), get_primitve_type_or_void(func.return_type), I.merge(code), []);
 }

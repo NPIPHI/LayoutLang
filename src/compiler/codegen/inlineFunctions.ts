@@ -10,6 +10,8 @@ export class InlineFunction {
 }
 
 export const inline_functions: InlineFunction[] = [
+    new InlineFunction("IntRange", ["i64"], new Identifier("IntRange"), []), 
+
     new InlineFunction("f64", ["i64"], new Identifier("i64_to_f64"), [I.f64.convert_i64_s]),
     new InlineFunction("f64", ["i32"], new Identifier("i32_to_f64"), [I.f64.convert_i32_s]),
     new InlineFunction("f64", ["f32"], new Identifier("f32_to_f64"), [I.f64.promote_f32]),
