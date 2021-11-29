@@ -4,15 +4,23 @@ constexpr int BASE_STACK_PTR = 128;
 
 
 #define grow_memory(blocks) (__builtin_wasm_memory_grow(0, blocks))
+#define DONT_GROW_MEM
 
+struct Point
+{
+    double x,y;
+};
 
 
 static int stack_ptr = BASE_STACK_PTR;
 extern "C" {
-    struct Point {
-        double x,y;
-    };
+    
     void* stack_alloc(int size){
+#ifdef DONT_GROW_MEM
+        auto ptr = stack_ptr;
+        stack_ptr += size;
+        return (void*)ptr;
+#else
         auto aligned_size = (size - 1) / 8 * 8 + 8;
         auto needed_blocks = (stack_ptr + aligned_size) / BLOCK_SIZE + 1;
         auto has_blocks = get_size();
@@ -25,6 +33,7 @@ extern "C" {
         auto ptr = stack_ptr;
         stack_ptr += aligned_size;
         return (void*)ptr;
+#endif
     }   
     void reset_alloc(){
         stack_ptr = BASE_STACK_PTR;
@@ -41,5 +50,14 @@ extern "C" {
         pt->x = a->x + b->x;
         pt->y = a->y + b->y;
         return pt;
+    }
+
+    void* point_array(int n){
+        auto points = (Point*)stack_alloc(sizeof(Point)*n);
+        auto head = points;
+        for(int i = 0; i < n; i++){
+            *points++ = {double(i), 5};
+        }
+        return head;
     }
 }
